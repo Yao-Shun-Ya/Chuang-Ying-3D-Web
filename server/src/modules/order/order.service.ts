@@ -1,8 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { UserService } from '../user/user.service';
 import { ModelService } from '../model/model.service';
 import { TransactionService } from '../transaction/transaction.service';
+import { PrintDispatchService } from '../print/print-dispatch.service';
 import { nanoid } from 'nanoid';
 import { OrderGateway } from './order.gateway';
 
@@ -49,12 +50,15 @@ export interface OrderLog {
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+
   constructor(
     private db: DatabaseService,
     private userService: UserService,
     private modelService: ModelService,
     private txService: TransactionService,
     private orderGateway: OrderGateway,
+    private printDispatch: PrintDispatchService,
   ) {}
 
   /**
@@ -145,6 +149,7 @@ export class OrderService {
 
   /**
    * 更新订单状态（状态机校验），记录日志
+   * - 若目标状态为 approved，自动下发打印任务并流转到 printing
    * 返回更新后的订单
    */
   updateStatus(
@@ -180,6 +185,35 @@ export class OrderService {
       userId: updated.user_id,
       remark: remark || null,
     });
+
+    // 审核通过后自动下发打印任务并流转到 printing
+    if (toStatus === 'approved') {
+      try {
+        this.printDispatch.dispatch(updated);
+        this.logger.log(`订单 ${updated.order_no} 审核通过，已自动下发打印任务`);
+        // 自动流转到 printing
+        this.db.prepare(
+          `UPDATE orders SET status = 'printing', updated_at = datetime('now','localtime') WHERE id = ?`,
+        ).run(orderId);
+        this.db.prepare(
+          `INSERT INTO order_logs (order_id, from_status, to_status, operator_id, remark)
+           VALUES (?, 'approved', 'printing', ?, ?)`,
+        ).run(orderId, operatorId, '系统自动下发打印任务');
+        const printingOrder = this.findById(orderId);
+        this.orderGateway.emitOrderStatus(orderId, {
+          status: 'printing',
+          orderNo: printingOrder.order_no,
+          userId: printingOrder.user_id,
+          remark: '系统自动下发打印任务',
+        });
+        return printingOrder;
+      } catch (e) {
+        this.logger.error(`订单 ${updated.order_no} 打印任务下发失败: ${e.message}`);
+        // 下发失败则停留在 approved，由管理员手动处理
+        return updated;
+      }
+    }
+
     return updated;
   }
 

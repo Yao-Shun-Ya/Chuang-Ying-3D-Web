@@ -28,6 +28,8 @@ export default () => ({
   },
   // 线下打印主机回调地址（预留，为空则仅本地目录下发）
   printCallbackUrl: process.env.PRINT_CALLBACK_URL || '',
+  // 打印机回调共享密钥（线下主机上报打印完成时需携带，未配置则开发模式跳过校验）
+  printCallbackSecret: process.env.PRINT_CALLBACK_SECRET || '',
   defaultAdmin: {
     username: process.env.ADMIN_USER || 'admin',
     password: process.env.ADMIN_PASS || 'admin123',

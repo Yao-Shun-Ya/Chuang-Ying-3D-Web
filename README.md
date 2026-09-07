@@ -83,15 +83,15 @@
 
 ### 管理员端
 
-| 功能     | 说明                                                             |
-| ------ | -------------------------------------------------------------- |
-| 仪表盘    | 订单 / 收入 / 用户 数据概览                                              |
-| CDK 管理 | 批量生成兑换码，指定面值与数量                                                |
-| 订单审核   | 查看全部订单、模型预览、审核通过 / 驳回（自动退款）                                    |
-| 状态流转   | pending\_review → approved → printing → completed → picked\_up |
-| 流水对账   | 全部资金流水，支持 CSV 导出                                               |
-| 用户管理   | 查看用户列表与余额                                                      |
-| 打印下发   | 审核通过后自动复制模型到打印目录 + 生成 task.json                                |
+| 功能     | 说明                                                               |
+| ------ | ---------------------------------------------------------------- |
+| 仪表盘    | 订单 / 收入 / 用户 数据概览                                                |
+| CDK 管理 | 批量生成兑换码，指定面值与数量                                                  |
+| 订单审核   | 查看全部订单、模型预览、审核通过（自动下发打印）/ 驳回（自动退款）                               |
+| 状态流转   | 审核通过自动转 printing → 打印机回调自动转 completed → 手动确认取件 picked\_up        |
+| 流水对账   | 全部资金流水，支持 CSV 导出                                                 |
+| 用户管理   | 查看用户列表与余额                                                        |
+| 打印下发   | 审核通过后自动复制模型到打印目录 + 生成 task.json + HTTP 回调线下主机 + 打印机回调 API 自动回写状态 |
 
 ***
 
@@ -200,33 +200,34 @@ npm run dev              # 开发模式 http://localhost:8732
 
 在 `server/` 目录下创建 `.env` 文件（或直接设置系统环境变量），所有变量均有默认值：
 
-| 变量                           | 默认值                               | 说明                     |
-| ---------------------------- | --------------------------------- | ---------------------- |
-| `PORT`                       | `8731`                            | 后端端口                   |
-| `JWT_SECRET`                 | `campus-3d-print-secret-key-2026` | JWT 签名密钥（**生产环境务必修改**） |
-| `UPLOAD_DIR`                 | `data/uploads`                    | 模型上传目录                 |
-| `PRINT_TASK_DIR`             | `data/print-tasks`                | 打印任务输出目录               |
-| `DB_FILE`                    | `data/campus-print.db`            | SQLite 数据库文件路径         |
-| `MATERIAL_DENSITY`           | `1.24`                            | 耗材密度 g/cm³（PLA）        |
-| `MATERIAL_PRICE`             | `0.5`                             | 耗材单价 元/g               |
-| `INFILL_RATE`                | `0.2`                             | 默认填充率 0\~1             |
-| `UPLOAD_MAX_MB`              | `50`                              | 单文件最大体积 MB             |
-| `PRINT_CALLBACK_URL`         | _(空)_                             | 线下打印主机 HTTP 回调地址       |
-| `ADMIN_USER`                 | `admin`                           | 默认管理员用户名               |
-| `ADMIN_PASS`                 | `admin123`                        | 默认管理员密码                |
-| `ADMIN_EMAIL`                | `admin@campus.edu`                | 默认管理员邮箱                |
-| `ADMIN_KEY_SECRET`           | `chuangying-admin-key-2026`       | 管理员密钥文件签名密钥            |
-| `ADMIN_KEY_TTL_HOURS`        | `24`                              | 管理员密钥文件有效期（小时）         |
-| `EMAIL_CODE_TTL`             | `5`                               | 邮箱验证码有效期（分钟）           |
-| `EMAIL_CODE_RESEND_COOLDOWN` | `60`                              | 验证码重发冷却（秒）             |
-| `EMAIL_CODE_MAX_SEND`        | `5`                               | 单邮箱每小时最大发送次数           |
-| `EMAIL_CODE_MAX_ATTEMPTS`    | `5`                               | 单验证码最大验证尝试次数           |
-| `SMTP_HOST`                  | _(空)_                             | SMTP 服务器地址             |
-| `SMTP_PORT`                  | `465`                             | SMTP 端口                |
-| `SMTP_SECURE`                | `true`                            | 是否使用 SSL               |
-| `SMTP_USER`                  | _(空)_                             | SMTP 用户名               |
-| `SMTP_PASS`                  | _(空)_                             | SMTP 密码                |
-| `SMTP_FROM`                  | _(空)_                             | 发件人地址                  |
+| 变量                           | 默认值                               | 说明                      |
+| ---------------------------- | --------------------------------- | ----------------------- |
+| `PORT`                       | `8731`                            | 后端端口                    |
+| `JWT_SECRET`                 | `campus-3d-print-secret-key-2026` | JWT 签名密钥（**生产环境务必修改**）  |
+| `UPLOAD_DIR`                 | `data/uploads`                    | 模型上传目录                  |
+| `PRINT_TASK_DIR`             | `data/print-tasks`                | 打印任务输出目录                |
+| `DB_FILE`                    | `data/campus-print.db`            | SQLite 数据库文件路径          |
+| `MATERIAL_DENSITY`           | `1.24`                            | 耗材密度 g/cm³（PLA）         |
+| `MATERIAL_PRICE`             | `0.5`                             | 耗材单价 元/g                |
+| `INFILL_RATE`                | `0.2`                             | 默认填充率 0\~1              |
+| `UPLOAD_MAX_MB`              | `50`                              | 单文件最大体积 MB              |
+| `PRINT_CALLBACK_URL`         | _(空)_                             | 线下打印主机 HTTP 回调地址        |
+| `PRINT_CALLBACK_SECRET`      | _(空)_                             | 打印机回调共享密钥（未配置则开发模式跳过校验） |
+| `ADMIN_USER`                 | `admin`                           | 默认管理员用户名                |
+| `ADMIN_PASS`                 | `admin123`                        | 默认管理员密码                 |
+| `ADMIN_EMAIL`                | `admin@campus.edu`                | 默认管理员邮箱                 |
+| `ADMIN_KEY_SECRET`           | `chuangying-admin-key-2026`       | 管理员密钥文件签名密钥             |
+| `ADMIN_KEY_TTL_HOURS`        | `24`                              | 管理员密钥文件有效期（小时）          |
+| `EMAIL_CODE_TTL`             | `5`                               | 邮箱验证码有效期（分钟）            |
+| `EMAIL_CODE_RESEND_COOLDOWN` | `60`                              | 验证码重发冷却（秒）              |
+| `EMAIL_CODE_MAX_SEND`        | `5`                               | 单邮箱每小时最大发送次数            |
+| `EMAIL_CODE_MAX_ATTEMPTS`    | `5`                               | 单验证码最大验证尝试次数            |
+| `SMTP_HOST`                  | _(空)_                             | SMTP 服务器地址              |
+| `SMTP_PORT`                  | `465`                             | SMTP 端口                 |
+| `SMTP_SECURE`                | `true`                            | 是否使用 SSL                |
+| `SMTP_USER`                  | _(空)_                             | SMTP 用户名                |
+| `SMTP_PASS`                  | _(空)_                             | SMTP 密码                 |
+| `SMTP_FROM`                  | _(空)_                             | 发件人地址                   |
 
 > **提示**：未配置 SMTP 时，邮箱验证码会输出到后端控制台，便于本地测试。
 
@@ -484,7 +485,7 @@ createOrder(userId, modelId) {
 }
 ```
 
-### 6. 打印任务下发
+### 6. 打印任务下发与自动流转
 
 ```typescript
 // server/src/modules/print/print-dispatch.service.ts
@@ -499,6 +500,68 @@ async dispatch(order) {
   if (this.device) await this.device.sendTask(task);
 }
 ```
+
+**订单状态自动流转：**
+
+```
+pending_review ──管理员审核通过──▶ approved
+                                       │
+                          系统自动：下发打印任务
+                                       ▼
+                                  printing
+                                       │
+                    打印机回调 POST /api/print/callback
+                                       ▼
+                                  completed
+                                       │
+                              管理员确认取件
+                                       ▼
+                                  picked_up
+```
+
+* **审核通过** → 系统自动调用 `dispatch()` 下发打印任务，并自动将状态流转为 `printing`，无需管理员手动点击
+
+* **打印完成** → 线下主机/打印机调用回调 API，系统自动将状态流转为 `completed`
+
+* **打印失败** → 回调 `result: 'failed'`，系统自动驳回订单并退款
+
+* **取件确认** → 需管理员手动确认（`picked_up`）
+
+### 7. 打印机回调 API
+
+线下打印主机在打印完成（或失败）后调用此接口上报，系统自动更新订单状态。
+
+**接口：** `POST /api/print/callback`
+
+**鉴权：** 请求头携带 `x-callback-secret`，值需与服务端 `PRINT_CALLBACK_SECRET` 环境变量一致。未配置该变量时开发模式跳过校验。
+
+**请求体：**
+
+```json
+{
+  "orderNo": "ORD1700000000ABCD",
+  "result": "success",
+  "printerName": "Ender-3 #1",
+  "duration": "2h 35m",
+  "message": "打印完成，表面质量良好"
+}
+```
+
+| 字段            | 类型                      | 必填 | 说明                |
+| ------------- | ----------------------- | -- | ----------------- |
+| `orderNo`     | string                  | ✅  | 订单号               |
+| `result`      | `'success' \| 'failed'` | 否  | 打印结果，默认 `success` |
+| `printerName` | string                  | 否  | 打印机名称             |
+| `duration`    | string                  | 否  | 打印耗时              |
+| `message`     | string                  | 否  | 备注信息              |
+
+**响应：**
+
+```json
+{ "success": true, "status": "completed", "orderNo": "ORD1700000000ABCD" }
+```
+
+**状态查询接口：** `POST /api/print/status`，请求体 `{ "orderNo": "..." }`，返回订单当前打印状态。
 
 ***
 
@@ -553,6 +616,13 @@ async dispatch(order) {
 | GET  | `/api/admin/transactions/export` | 流水导出 CSV                                | admin |
 | GET  | `/api/admin/users`               | 用户列表                                    | admin |
 | GET  | `/api/admin/dashboard`           | 仪表盘统计数据                                 | admin |
+
+### 打印 Print（线下主机对接）
+
+| 方法   | 路径                    | 说明               | 权限   |
+| ---- | --------------------- | ---------------- | ---- |
+| POST | `/api/print/callback` | 打印完成回调（自动更新订单状态） | 回调密钥 |
+| POST | `/api/print/status`   | 查询订单打印状态         | 公开   |
 
 ***
 
@@ -725,7 +795,9 @@ A: 通过环境变量 `MATERIAL_DENSITY`、`MATERIAL_PRICE`、`INFILL_RATE` 修�
 本项目为校内创意室 3D 打印自助服务平台，从需求分析、架构设计到前后端开发、UI 动效均由本人独立完成。
 
 * 学校：川北医学院
+
 * 方向：全栈开发 / 3D 打印 / 创意造物
+
 * 项目定位：面向校内学生与管理员的封闭式 3D 打印自助服务平台
 
 ***
@@ -737,6 +809,7 @@ A: 通过环境变量 `MATERIAL_DENSITY`、`MATERIAL_PRICE`、`INFILL_RATE` 修�
 ***
 
 ## 免责声明
+
 本网站及其内容仅供学术展示与软件分发平台。医疗诊断必须由具备执业资质的医师做出。
 相关软件及 AI 模型输出结果仅供科研与临床辅助参考，
 开发团队对任何基于本系统的直接医疗干预后果不承担法律责任。
@@ -744,6 +817,7 @@ A: 通过环境变量 `MATERIAL_DENSITY`、`MATERIAL_PRICE`、`INFILL_RATE` 修�
 ***
 
 ## 如何引用
+
 如果您在项目中使用了本网站的设计或代码，请遵循以下格式引用：
 
 ```bibtex
@@ -770,3 +844,4 @@ A: 通过环境变量 `MATERIAL_DENSITY`、`MATERIAL_PRICE`、`INFILL_RATE` 修�
 * [Aceternity UI](https://ui.aceternity.com/) - 动效灵感
 
 * 我自己 - 真的很累也花了很多时间
+
