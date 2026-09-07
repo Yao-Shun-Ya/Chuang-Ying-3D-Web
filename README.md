@@ -737,13 +737,13 @@ A: 通过环境变量 `MATERIAL_DENSITY`、`MATERIAL_PRICE`、`INFILL_RATE` 修�
 如果您在项目中使用了本网站的设计或代码，请遵循以下格式引用：
 
 ```bibtex
-@misc{huang2026xianeryijianweb,
+@misc{huang2026chuangyingweb,
   author = {Yupu Huang},
-  title = {XianErYiJian Web Platform: Medical Imaging AI Visualization and Distribution System},
+  title = {ChuangYing 3D Web Platform: 3D Printing Smart Ordering System},
   year = {2026},
   publisher = {GitHub},
   journal = {GitHub repository},
-  howpublished = {\url{https://github.com/Yao-Shun-Ya/Xian-Er-Yi-Jian-Web}}
+  howpublished = {\url{https://github.com/Yao-Shun-Ya/Chuang-Ying-3D-Web}}
 }
 ```
 
