@@ -1,5 +1,18 @@
 # 创影 3D · 校内 3D 打印自助服务平台
 
+<p align="center">
+  <a href="https://github.com/Yao-Shun-Ya/Chuang-Ying-3D-Web"><img src="https://img.shields.io/badge/GitHub-ChuangYing%203D-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
+  <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue.js-3.4-42B883?style=for-the-badge&logo=vuedotjs&logoColor=white" alt="Vue.js"></a>
+  <a href="https://vitejs.dev/"><img src="https://img.shields.io/badge/Vite-5.0-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.3-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
+  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind%20CSS-4.0-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS"></a>
+  <a href="https://threejs.org/"><img src="https://img.shields.io/badge/Three.js-0.185-000000?style=for-the-badge&logo=threedotjs&logoColor=white" alt="Three.js"></a>
+  <a href="https://nestjs.com/"><img src="https://img.shields.io/badge/NestJS-10-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js"></a>
+  <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"></a>
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License">
+</p>
+
 > 让创意，触手可及。
 
 面向校内在校学生与创意室管理员的 **封闭式 3D 打印自助服务 Web 平台**。学生上传模型 → 系统自动解析体积并计价 → CDK 充值 → 下单 → 管理员审核 → 打印下发 → 取件，全流程线上化。采用前后端分离、轻量模块化架构，一键部署在校内常驻主机。
@@ -707,9 +720,34 @@ A: 通过环境变量 `MATERIAL_DENSITY`、`MATERIAL_PRICE`、`INFILL_RATE` 修�
 
 ***
 
-## 📄 License
+## 📄 开源协议 (License)
 
-MIT
+本项目代码基于 **MIT License** 开源。
+
+***
+
+## 免责声明
+本网站及其内容仅供学术展示与软件分发平台。医疗诊断必须由具备执业资质的医师做出。
+相关软件及 AI 模型输出结果仅供科研与临床辅助参考，
+开发团队对任何基于本系统的直接医疗干预后果不承担法律责任。
+
+***
+
+## 如何引用
+如果您在项目中使用了本网站的设计或代码，请遵循以下格式引用：
+
+```bibtex
+@misc{huang2026xianeryijianweb,
+  author = {Yupu Huang},
+  title = {XianErYiJian Web Platform: Medical Imaging AI Visualization and Distribution System},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/Yao-Shun-Ya/Xian-Er-Yi-Jian-Web}}
+}
+```
+
+***
 
 ## 🤝 致谢
 
@@ -721,3 +759,4 @@ MIT
 
 * [Aceternity UI](https://ui.aceternity.com/) - 动效灵感
 
+* 我自己 - 真的很累也花了很多时间
