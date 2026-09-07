@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+server/dist/
+web/dist/
+
+# Runtime data
+server/data/campus-print.db
+server/data/campus-print.db-shm
+server/data/campus-print.db-wal
+server/data/uploads/*
+server/data/print-tasks/*
+server/data/avatars/*
+server/admin.key
+
+# Keep directory structure
+!server/data/uploads/.gitkeep
+!server/data/print-tasks/.gitkeep
+!server/data/avatars/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Trae
+.trae/
+
+# Temp markdown
+新建 文本文档*.md
