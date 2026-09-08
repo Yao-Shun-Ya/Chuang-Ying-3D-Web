@@ -13,8 +13,8 @@
         <div class="flex-1"></div>
 
         <!-- 退出按钮 -->
-        <Button variant="outline" size="sm" @click="handleLogout">
-          <LogOut class="w-4 h-4 mr-1.5" /> 退出
+        <Button variant="destructive" size="sm" @click="handleLogout">
+          <LogOut class="w-4 h-4 mr-1.5" /> 退出登录
         </Button>
       </div>
     </header>

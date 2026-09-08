@@ -40,7 +40,7 @@
         <TableBody>
           <TableRow v-for="o in list" :key="o.id">
             <TableCell class="font-mono text-xs">{{ o.order_no }}</TableCell>
-            <TableCell>{{ o.username }}</TableCell>
+            <TableCell>{{ userDisplayName(o) }}</TableCell>
             <TableCell>{{ o.model_name }}</TableCell>
             <TableCell>{{ o.volume }}</TableCell>
             <TableCell>¥{{ o.cost }}</TableCell>
@@ -88,6 +88,7 @@ import AmbientBackground from '@/components/AmbientBackground.vue'
 import { ref, onMounted } from 'vue'
 import { listAllOrders, approveOrder, rejectOrder, updateOrderStatus } from '@/api'
 import { toast } from '@/composables/useToast'
+import { userDisplayName } from '@/lib/utils'
 import { Eye, X } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 import Badge from '@/components/ui/Badge.vue'

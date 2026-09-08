@@ -21,7 +21,7 @@
               {{ displayInitial }}
             </div>
           </div>
-          <div class="mt-3 text-lg font-semibold">{{ user?.displayName || user?.username }}</div>
+          <div class="mt-3 text-lg font-semibold">{{ defaultDisplayName }}</div>
           <div class="text-sm text-muted-foreground">{{ user?.email }}</div>
 
           <div class="mt-5 space-y-3">
@@ -42,19 +42,20 @@
                 保存
               </Button>
             </div>
-            <p class="text-xs text-muted-foreground">默认名称为你的邮箱号，可在此修改</p>
+            <p class="text-xs text-muted-foreground">默认名称为邮箱前缀，可在此修改</p>
           </div>
         </div>
 
         <div class="mt-6 pt-6 border-t border-border">
-          <h4 class="font-medium mb-3 text-sm">账户信息</h4>
+          <h4 class="font-medium mb-3 text-sm">个人信息</h4>
           <dl class="space-y-2 text-sm">
-            <div class="flex justify-between"><dt class="text-muted-foreground">账号</dt><dd>{{ user?.username }}</dd></div>
             <div class="flex justify-between"><dt class="text-muted-foreground">邮箱</dt><dd>{{ user?.email }}</dd></div>
-            <div class="flex justify-between"><dt class="text-muted-foreground">角色</dt><dd>{{ user?.role === 'admin' ? '管理员' : '学生' }}</dd></div>
             <div class="flex justify-between"><dt class="text-muted-foreground">真实姓名</dt><dd>{{ user?.realName || '-' }}</dd></div>
             <div class="flex justify-between"><dt class="text-muted-foreground">学号</dt><dd>{{ user?.studentNo || '-' }}</dd></div>
           </dl>
+          <Button variant="outline" size="sm" class="w-full mt-4" @click="openInfoDialog">
+            <Pencil class="w-4 h-4 mr-1.5" /> 修改个人信息
+          </Button>
         </div>
       </div>
 
@@ -172,6 +173,32 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- 修改个人信息弹窗 -->
+    <Dialog v-model="showInfoDialog">
+      <div class="space-y-5">
+        <div>
+          <h3 class="text-lg font-semibold">修改个人信息</h3>
+          <p class="text-sm text-muted-foreground mt-1">更新你的真实姓名与学号</p>
+        </div>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label>真实姓名</Label>
+            <Input v-model="infoForm.realName" placeholder="请输入真实姓名" />
+          </div>
+          <div class="space-y-2">
+            <Label>学号</Label>
+            <Input v-model="infoForm.studentNo" placeholder="请输入学号" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <Button variant="outline" @click="showInfoDialog = false">取消</Button>
+          <Button variant="gradient" :disabled="savingInfo" @click="saveInfo">
+            <Loader2 v-if="savingInfo" class="w-4 h-4 animate-spin" /> 保存
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -181,16 +208,22 @@ import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { toast } from '@/composables/useToast'
 import { getBalance, redeemCdk, updateProfile, changePassword, uploadAvatar, sendCode } from '@/api'
-import { Wallet, Ticket, Upload, Lock, Check, Loader2, ZoomIn, ZoomOut } from 'lucide-vue-next'
+import { Wallet, Ticket, Upload, Lock, Check, Loader2, ZoomIn, ZoomOut, Pencil } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Label from '@/components/ui/Label.vue'
+import Dialog from '@/components/ui/Dialog.vue'
 
 const userStore = useUserStore()
 const user = computed(() => userStore.user)
 
 const avatarUrl = computed(() => (user.value?.avatar ? user.value.avatar : ''))
-const displayInitial = computed(() => (user.value?.displayName || user.value?.username || '?').charAt(0).toUpperCase())
+const defaultDisplayName = computed(() => {
+  if (user.value?.displayName) return user.value.displayName
+  if (user.value?.email) return user.value.email.split('@')[0]
+  return ''
+})
+const displayInitial = computed(() => (defaultDisplayName.value || '?').charAt(0).toUpperCase())
 
 const balance = ref(0)
 const cdkCode = ref('')
@@ -198,6 +231,10 @@ const redeeming = ref(false)
 
 const displayNameInput = ref('')
 const savingName = ref(false)
+
+const showInfoDialog = ref(false)
+const infoForm = ref({ realName: '', studentNo: '' })
+const savingInfo = ref(false)
 
 const pwForm = ref({ code: '', newPassword: '', confirmPassword: '' })
 const changingPw = ref(false)
@@ -222,9 +259,7 @@ async function sendPwCode() {
 }
 
 onMounted(async () => {
-  if (user.value) {
-    displayNameInput.value = user.value.displayName || ''
-  }
+  displayNameInput.value = defaultDisplayName.value
   try {
     const res = await getBalance()
     balance.value = res.balance
@@ -255,6 +290,31 @@ async function saveDisplayName() {
     toast.success('展示名称已更新')
   } finally {
     savingName.value = false
+  }
+}
+
+// ===== 修改个人信息（真实姓名 / 学号）=====
+function openInfoDialog() {
+  infoForm.value.realName = user.value?.realName || ''
+  infoForm.value.studentNo = user.value?.studentNo || ''
+  showInfoDialog.value = true
+}
+
+async function saveInfo() {
+  savingInfo.value = true
+  try {
+    await updateProfile({
+      realName: infoForm.value.realName.trim() || undefined,
+      studentNo: infoForm.value.studentNo.trim() || undefined,
+    })
+    if (user.value) {
+      user.value.realName = infoForm.value.realName.trim() || undefined
+      user.value.studentNo = infoForm.value.studentNo.trim() || undefined
+    }
+    toast.success('个人信息已更新')
+    showInfoDialog.value = false
+  } finally {
+    savingInfo.value = false
   }
 }
 

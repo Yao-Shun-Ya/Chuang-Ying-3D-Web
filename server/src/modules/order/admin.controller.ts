@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { CacheInterceptor, CacheKey, CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { Throttle } from '@nestjs/throttler';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -37,6 +38,7 @@ class RejectDto {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 @UseInterceptors(CacheInterceptor)
+@Throttle({ default: { limit: 60, ttl: 60000 } })
 export class AdminController {
   constructor(
     private orderService: OrderService,

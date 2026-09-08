@@ -177,12 +177,12 @@ export class OrderService {
 
   listAll(status?: OrderStatus) {
     const sql = status
-      ? `SELECT o.*, u.username, m.original_name as model_name
+      ? `SELECT o.*, u.username, u.display_name, u.email, m.original_name as model_name
          FROM orders o
          LEFT JOIN users u ON u.id = o.user_id
          LEFT JOIN models m ON m.id = o.model_id
          WHERE o.status = ? ORDER BY o.id DESC`
-      : `SELECT o.*, u.username, m.original_name as model_name
+      : `SELECT o.*, u.username, u.display_name, u.email, m.original_name as model_name
          FROM orders o
          LEFT JOIN users u ON u.id = o.user_id
          LEFT JOIN models m ON m.id = o.model_id

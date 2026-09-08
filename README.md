@@ -322,11 +322,13 @@ ChuangYingWeb/
 | 字段                        | 类型          | 说明              |
 | ------------------------- | ----------- | --------------- |
 | id                        | INTEGER PK  | 主键              |
-| username                  | TEXT UNIQUE | 用户名             |
+| username                  | TEXT UNIQUE | 用户名（登录账号）       |
 | password\_hash            | TEXT        | bcrypt 哈希       |
 | role                      | TEXT        | student / admin |
 | real\_name / student\_no  | TEXT        | 姓名、学号           |
-| email                     | TEXT        | 邮箱              |
+| email                     | TEXT UNIQUE | 邮箱              |
+| display\_name             | TEXT        | 展示名称（默认取邮箱前缀）   |
+| avatar                    | TEXT        | 头像路径            |
 | balance                   | REAL        | 虚拟余额            |
 | created\_at / updated\_at | TEXT        | 时间戳             |
 
@@ -591,17 +593,17 @@ pending_review ──管理员审核通过──▶ approved
 
 ### 认证 Auth
 
-| 方法    | 路径                                | 说明                | 权限          |
-| ----- | --------------------------------- | ----------------- | ----------- |
-| POST  | `/api/auth/send-code`             | 发送邮箱验证码           | 公开          |
-| POST  | `/api/auth/register`              | 注册（邮箱 + 验证码 + 密码） | 公开          |
-| POST  | `/api/auth/login`                 | 登录，返回 JWT         | 公开          |
-| GET   | `/api/auth/me`                    | 获取当前用户信息          | 登录          |
-| PATCH | `/api/auth/me`                    | 更新个人信息（姓名/学号/头像）  | 登录          |
-| POST  | `/api/auth/change-password`       | 已登录用户改密（邮箱验证码）    | 登录          |
-| POST  | `/api/auth/reset-password`        | 忘记密码重置（邮箱 + 验证码）  | 公开          |
-| POST  | `/api/auth/avatar`                | 上传头像（裁切后图片）       | 登录          |
-| POST  | `/api/auth/admin/change-password` | 管理员通过密钥文件改密       | admin + Key |
+| 方法    | 路径                                | 说明                    | 权限          |
+| ----- | --------------------------------- | --------------------- | ----------- |
+| POST  | `/api/auth/send-code`             | 发送邮箱验证码               | 公开          |
+| POST  | `/api/auth/register`              | 注册（邮箱 + 验证码 + 密码）     | 公开          |
+| POST  | `/api/auth/login`                 | 登录，返回 JWT             | 公开          |
+| GET   | `/api/auth/me`                    | 获取当前用户信息              | 登录          |
+| PATCH | `/api/auth/me`                    | 更新个人信息（姓名/学号/展示名称/头像） | 登录          |
+| POST  | `/api/auth/change-password`       | 已登录用户改密（邮箱验证码）        | 登录          |
+| POST  | `/api/auth/reset-password`        | 忘记密码重置（邮箱 + 验证码）      | 公开          |
+| POST  | `/api/auth/avatar`                | 上传头像（裁切后图片）           | 登录          |
+| POST  | `/api/auth/admin/change-password` | 管理员通过密钥文件改密           | admin + Key |
 
 ### CDK
 
@@ -662,26 +664,26 @@ pending_review ──管理员审核通过──▶ approved
 
 ## 🔐 安全机制
 
-| 机制        | 实现                                                                                             |
-| --------- | ---------------------------------------------------------------------------------------------- |
-| 密码存储      | bcryptjs 哈希，cost factor = 10                                                                   |
-| 鉴权        | JWT (HS256)，有效期 7 天，Passport 策略校验                                                              |
-| JWT 密钥    | 生产环境（`NODE_ENV=production`）未显式配置 `JWT_SECRET` 或使用默认值 → **启动失败**                                |
-| 角色权限      | `@Roles('admin')` 装饰器 + `RolesGuard` 守卫                                                        |
-| 接口限流      | ThrottlerGuard 全局守卫（10 次/分钟/IP）；登录/注册 5 次/分钟，验证码发送 3 次/分钟                                      |
-| 余额操作      | SQLite 事务 + 原子条件更新（`WHERE balance >= ?` 防超扣、`WHERE status='unused'` 防双花），金额 `ROUND(x,2)` 防浮点尾差 |
-| CDK 防重    | 事务内条件更新 `WHERE status='unused'`，并发双花被拒绝                                                        |
-| 退款防重      | 驳回退款为条件更新（状态不满足则 `changes=0` 回滚），并发下不会重复退款                                                     |
-| 文件上传      | 后缀白名单（stl/obj/3mf）+ 大小限制（默认 50MB）+ 原始文件名净化（防路径穿越）                                              |
-| 文件访问      | 模型文件仅可通过 `/api/models/:id/file` 下载（所有者/管理员），`/uploads/` 静态目录已关闭                                |
-| 打印回调      | `x-callback-secret` 共享密钥；生产环境未配置密钥一律拒绝                                                         |
-| WebSocket | 连接需携带 JWT（`auth.token`），从 token 解出身份，禁止客户端自报 userId                                            |
-| CORS      | `CORS_ORIGINS` 白名单（逗号分隔）；未配置时反射任意来源（仅开发）                                                       |
-| Swagger   | 生产环境自动关闭 `/api-docs`                                                                           |
-| 订单状态      | 状态机校验，非法迁移直接拒绝                                                                                 |
-| 邮箱限流      | 单邮箱每小时 5 次发送，单验证码 5 次尝试                                                                        |
-| 数据唯一性     | users.email 唯一索引（启动迁移自动创建）                                                                     |
-| 管理员改密     | HMAC-SHA256 签名的密钥文件，24 小时有效期                                                                   |
+| 机制        | 实现                                                                                                 |
+| --------- | -------------------------------------------------------------------------------------------------- |
+| 密码存储      | bcryptjs 哈希，cost factor = 10                                                                       |
+| 鉴权        | JWT (HS256)，有效期 7 天，Passport 策略校验                                                                  |
+| JWT 密钥    | 生产环境（`NODE_ENV=production`）未显式配置 `JWT_SECRET` 或使用默认值 → **启动失败**                                    |
+| 角色权限      | `@Roles('admin')` 装饰器 + `RolesGuard` 守卫                                                            |
+| 接口限流      | ThrottlerGuard 全局守卫（10 次/分钟/IP）；登录/注册 5 次/分钟，验证码发送 3 次/分钟；**管理员专属接口（订单审核/状态流转/用户/流水等）放宽至 60 次/分钟** |
+| 余额操作      | SQLite 事务 + 原子条件更新（`WHERE balance >= ?` 防超扣、`WHERE status='unused'` 防双花），金额 `ROUND(x,2)` 防浮点尾差     |
+| CDK 防重    | 事务内条件更新 `WHERE status='unused'`，并发双花被拒绝                                                            |
+| 退款防重      | 驳回退款为条件更新（状态不满足则 `changes=0` 回滚），并发下不会重复退款                                                         |
+| 文件上传      | 后缀白名单（stl/obj/3mf）+ 大小限制（默认 50MB）+ 原始文件名净化（防路径穿越）                                                  |
+| 文件访问      | 模型文件仅可通过 `/api/models/:id/file` 下载（所有者/管理员），`/uploads/` 静态目录已关闭                                    |
+| 打印回调      | `x-callback-secret` 共享密钥；生产环境未配置密钥一律拒绝                                                             |
+| WebSocket | 连接需携带 JWT（`auth.token`），从 token 解出身份，禁止客户端自报 userId                                                |
+| CORS      | `CORS_ORIGINS` 白名单（逗号分隔）；未配置时反射任意来源（仅开发）                                                           |
+| Swagger   | 生产环境自动关闭 `/api-docs`                                                                               |
+| 订单状态      | 状态机校验，非法迁移直接拒绝                                                                                     |
+| 邮箱限流      | 单邮箱每小时 5 次发送，单验证码 5 次尝试                                                                            |
+| 数据唯一性     | users.email 唯一索引（启动迁移自动创建）                                                                         |
+| 管理员改密     | HMAC-SHA256 签名的密钥文件，24 小时有效期                                                                       |
 
 ***
 

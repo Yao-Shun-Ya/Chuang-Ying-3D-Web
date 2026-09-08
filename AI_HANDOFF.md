@@ -83,6 +83,7 @@ server/src/
 - 后端：`TransformInterceptor` 包装成功响应，`GlobalExceptionFilter` 包装错误
 - 前端：`web/src/api/request.ts` 拦截器已提取 `.data`（即业务数据），**页面拿到的是业务数据本体**
 - **前端拿到 axios 响应 = 后端 data 字段**，不要再解包
+- **用户展示名称统一规则**：优先 `display_name`，其次邮箱 `@` 前缀，最后回退 `username`。前端用 `web/src/lib/utils.ts` 的 `userDisplayName(o)` 工具函数（订单审核/流水对账/用户管理等页面均复用），不要各自写逻辑
 
 ### 4.3 错误码体系（common/constants/error-codes.ts）
 
@@ -119,7 +120,7 @@ pending_review →(审核通过)→ approved →(自动下发打印)→ printing
 
 ### 4.6 安全基线（已加固，勿回退）
 
-- ThrottlerGuard 全局限流（10 次/分/IP）+ 敏感接口覆盖（登录 10 次/分、注册/重置 5 次/分、验证码 3 次/分）
+- ThrottlerGuard 全局限流（10 次/分/IP）+ 敏感接口覆盖（登录 10 次/分、注册/重置 5 次/分、验证码 3 次/分）；**管理员专属接口（AdminController 全部 + 订单状态流转）通过 `@Throttle({ default: { limit: 60, ttl: 60000 } })` 放宽至 60 次/分**，避免审核操作频繁触发 429
 - JWT：生产环境（`NODE_ENV=production`）未显式配置 `JWT_SECRET` 直接启动失败；生产自动关闭 Swagger
 - 打印回调：需 `x-callback-secret`，生产未配置密钥一律 401
 - WebSocket：**连接必须携带 JWT**（前端 `auth: { token }`），服务端从 token 解 userId，禁止客户端自报身份

@@ -277,7 +277,7 @@ sqlite3 data/campus-print.db \
 
 * [x] Helmet 安全头已启用
 
-* [x] 接口限流：ThrottlerGuard 全局（10 次/分钟/IP），登录/注册 5 次/分、验证码 3 次/分
+* [x] 接口限流：ThrottlerGuard 全局（10 次/分钟/IP），登录/注册 5 次/分、验证码 3 次/分；管理员专属接口放宽至 60 次/分
 
 * [x] 管理员操作审计日志
 

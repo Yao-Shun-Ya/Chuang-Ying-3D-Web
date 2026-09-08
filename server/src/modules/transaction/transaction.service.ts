@@ -52,7 +52,7 @@ export class TransactionService {
 
   listAll() {
     return this.db.all<Transaction>(
-      `SELECT t.*, u.username
+      `SELECT t.*, u.username, u.display_name, u.email
        FROM transactions t LEFT JOIN users u ON u.id = t.user_id
        ORDER BY t.id DESC`,
     );
@@ -61,13 +61,16 @@ export class TransactionService {
   /** 导出 CSV */
   exportCsv(): string {
     const rows = this.listAll();
-    const header = ['ID', '用户ID', '用户名', '类型', '金额', '操作后余额', '关联ID', '备注', '时间'];
+    const header = ['ID', '用户ID', '用户名', '邮箱', '类型', '金额', '操作后余额', '关联ID', '备注', '时间'];
     const lines = [header.join(',')];
     for (const r of rows) {
+      const any = r as any;
+      const displayName = any.display_name || (any.email ? String(any.email).split('@')[0] : any.username) || '';
       const row = [
         r.id,
         r.user_id,
-        (r as any).username || '',
+        displayName,
+        any.email || '',
         r.type,
         r.amount,
         r.balance_after,

@@ -16,6 +16,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { IsNumber, IsString, IsOptional, IsIn } from 'class-validator';
+import { Throttle } from '@nestjs/throttler';
 
 class CreateOrderDto {
   @IsNumber()
@@ -89,6 +90,7 @@ export class OrderController {
   @Post(':id/status')
   @UseGuards(RolesGuard)
   @Roles('admin')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   updateStatus(
     @Param('id') id: number,
     @Body() dto: UpdateStatusDto,

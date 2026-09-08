@@ -17,6 +17,7 @@
           <TableRow>
             <TableHead>ID</TableHead>
             <TableHead>用户</TableHead>
+            <TableHead>邮箱</TableHead>
             <TableHead>类型</TableHead>
             <TableHead>金额</TableHead>
             <TableHead>操作后余额</TableHead>
@@ -27,7 +28,8 @@
         <TableBody>
           <TableRow v-for="t in list" :key="t.id">
             <TableCell class="text-muted-foreground">#{{ t.id }}</TableCell>
-            <TableCell>{{ t.username }}</TableCell>
+            <TableCell>{{ userDisplayName(t) }}</TableCell>
+            <TableCell class="text-muted-foreground">{{ t.email || '-' }}</TableCell>
             <TableCell><Badge :variant="typeBadge(t.type)">{{ typeLabel(t.type) }}</Badge></TableCell>
             <TableCell>
               <span :class="t.type === 'deduct' ? 'text-red-500 font-semibold' : 'text-emerald-600 font-semibold'">
@@ -48,6 +50,7 @@
 import AmbientBackground from '@/components/AmbientBackground.vue'
 import { ref, onMounted } from 'vue'
 import { listAllTransactions, exportTransactions } from '@/api'
+import { userDisplayName } from '@/lib/utils'
 import { Download } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 import Badge from '@/components/ui/Badge.vue'

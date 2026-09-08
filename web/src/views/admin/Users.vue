@@ -12,7 +12,7 @@
           <TableRow>
             <TableHead>ID</TableHead>
             <TableHead>用户名</TableHead>
-            <TableHead>角色</TableHead>
+            <TableHead>邮箱</TableHead>
             <TableHead>姓名</TableHead>
             <TableHead>学号</TableHead>
             <TableHead>余额</TableHead>
@@ -22,12 +22,8 @@
         <TableBody>
           <TableRow v-for="u in list" :key="u.id">
             <TableCell class="text-muted-foreground">#{{ u.id }}</TableCell>
-            <TableCell class="font-medium">{{ u.username }}</TableCell>
-            <TableCell>
-              <Badge :variant="u.role === 'admin' ? 'destructive' : 'info'">
-                {{ u.role === 'admin' ? '管理员' : '学生' }}
-              </Badge>
-            </TableCell>
+            <TableCell class="font-medium">{{ userDisplayName(u) }}</TableCell>
+            <TableCell class="text-muted-foreground">{{ u.email || '-' }}</TableCell>
             <TableCell>{{ u.real_name || '-' }}</TableCell>
             <TableCell>{{ u.student_no || '-' }}</TableCell>
             <TableCell>¥{{ u.balance }}</TableCell>
@@ -43,7 +39,7 @@
 import AmbientBackground from '@/components/AmbientBackground.vue'
 import { ref, onMounted } from 'vue'
 import { listUsers } from '@/api'
-import Badge from '@/components/ui/Badge.vue'
+import { userDisplayName } from '@/lib/utils'
 import Table from '@/components/ui/Table.vue'
 import TableHeader from '@/components/ui/TableHeader.vue'
 import TableBody from '@/components/ui/TableBody.vue'
