@@ -75,6 +75,72 @@
       </div>
     </div>
 
+    <!-- 系统健康监控 -->
+    <div class="mt-6 rounded-2xl border border-border bg-card p-6 shadow-soft">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
+            <Activity class="w-5 h-5 text-emerald-600" />
+          </div>
+          <h3 class="text-lg font-semibold">系统健康</h3>
+        </div>
+        <button
+          class="text-muted-foreground hover:text-foreground transition-colors"
+          :disabled="healthLoading"
+          @click="loadHealth"
+          title="刷新"
+        >
+          <Loader2 v-if="healthLoading" class="w-4 h-4 animate-spin" />
+          <RefreshCw v-else class="w-4 h-4" />
+        </button>
+      </div>
+
+      <div v-if="healthError" class="py-6 text-center text-sm text-red-500">
+        {{ healthError }}
+      </div>
+      <div v-else-if="!health" class="py-6 text-center text-muted-foreground text-sm">
+        <Loader2 class="w-6 h-6 mx-auto mb-2 animate-spin" />
+        加载中...
+      </div>
+      <template v-else>
+        <!-- 状态徽标 -->
+        <div class="flex items-center gap-2 mb-5">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+            :class="health.status === 'ok' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse"
+              :class="health.status === 'ok' ? 'bg-emerald-500' : 'bg-red-500'"></span>
+            {{ health.status === 'ok' ? '运行正常' : '异常' }}
+          </span>
+          <span class="text-xs text-muted-foreground">已运行 {{ formatUptime(health.uptime) }}</span>
+          <span class="ml-auto text-xs text-muted-foreground flex items-center gap-1">
+            <Database class="w-3.5 h-3.5" :class="health.database?.connected ? 'text-emerald-500' : 'text-red-500'" />
+            数据库{{ health.database?.connected ? '正常' : '断开' }}
+          </span>
+        </div>
+
+        <!-- 磁盘 / 内存 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div v-for="m in healthMeters" :key="m.label">
+            <div class="flex items-center justify-between text-sm mb-1.5">
+              <span class="font-medium flex items-center gap-1.5">
+                <component :is="m.icon" class="w-4 h-4 text-muted-foreground" />
+                {{ m.label }}
+              </span>
+              <span :class="['font-semibold', m.color]">{{ m.usagePercent }}%</span>
+            </div>
+            <div class="h-2.5 rounded-full bg-secondary overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all duration-700"
+                :class="m.barColor"
+                :style="{ width: m.usagePercent + '%' }"
+              ></div>
+            </div>
+            <p class="text-xs text-muted-foreground mt-1.5">{{ m.detail }}</p>
+          </div>
+        </div>
+      </template>
+    </div>
+
     <!-- 管理员安全：Key 文件改密 -->
     <div class="mt-6 rounded-2xl border border-border bg-card p-6 shadow-soft">
       <div class="flex items-center gap-2 mb-5">
@@ -129,7 +195,7 @@
 import AmbientBackground from '@/components/AmbientBackground.vue'
 import { ref, onMounted, computed, markRaw } from 'vue'
 import { listAllOrders, listUsers, listAllTransactions, listCdk, changeAdminPasswordByKey } from '@/api'
-import { Users, FileText, Clock, Wallet, Zap, ListChecks, Ticket, Receipt, KeyRound, UploadCloud, FileCheck, Loader2 } from 'lucide-vue-next'
+import { Users, FileText, Clock, Wallet, Zap, ListChecks, Ticket, Receipt, KeyRound, UploadCloud, FileCheck, Loader2, Activity, RefreshCw, HardDrive, MemoryStick, Database } from 'lucide-vue-next'
 import { toast } from '@/composables/useToast'
 import Input from '@/components/ui/Input.vue'
 import Label from '@/components/ui/Label.vue'
@@ -145,7 +211,74 @@ onMounted(async () => {
   users.value = await listUsers()
   txs.value = await listAllTransactions()
   cdks.value = await listCdk()
+  loadHealth()
 })
+
+// ===== 系统健康监控 =====
+interface HealthData {
+  status: string
+  uptime: number
+  database: { connected: boolean }
+  disk: { freeGB: number; totalGB: number; usagePercent: number }
+  memory: { freeMB: number; totalMB: number; usagePercent: number }
+}
+const health = ref<HealthData | null>(null)
+const healthLoading = ref(false)
+const healthError = ref('')
+
+async function loadHealth() {
+  healthLoading.value = true
+  healthError.value = ''
+  try {
+    // /health 为公开端点，不走 axios 拦截器（避免统一弹错/401 跳转）
+    const res = await fetch('/health')
+    const body = await res.json()
+    if (body.code !== 0) throw new Error()
+    health.value = body.data
+  } catch {
+    healthError.value = '健康数据获取失败，后端服务可能未启动'
+  } finally {
+    healthLoading.value = false
+  }
+}
+
+/** 用量分档：<70% 正常（绿）、70~90% 警告（琥珀）、>90% 危险（红） */
+function usageLevel(p: number) {
+  if (p > 90) return { color: 'text-red-600', barColor: 'bg-red-500' }
+  if (p > 70) return { color: 'text-amber-600', barColor: 'bg-amber-500' }
+  return { color: 'text-emerald-600', barColor: 'bg-emerald-500' }
+}
+
+const healthMeters = computed(() => {
+  if (!health.value) return []
+  const d = health.value.disk
+  const m = health.value.memory
+  return [
+    {
+      label: '磁盘使用',
+      icon: markRaw(HardDrive),
+      usagePercent: d.usagePercent,
+      detail: `剩余 ${d.freeGB} GB / 共 ${d.totalGB} GB`,
+      ...usageLevel(d.usagePercent),
+    },
+    {
+      label: '内存使用',
+      icon: markRaw(MemoryStick),
+      usagePercent: m.usagePercent,
+      detail: `剩余 ${(m.freeMB / 1024).toFixed(1)} GB / 共 ${(m.totalMB / 1024).toFixed(1)} GB`,
+      ...usageLevel(m.usagePercent),
+    },
+  ]
+})
+
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
+  const min = Math.floor((seconds % 3600) / 60)
+  if (d > 0) return `${d} 天 ${h} 小时`
+  if (h > 0) return `${h} 小时 ${min} 分钟`
+  return `${min} 分钟`
+}
 
 const pendingOrders = computed(() => orders.value.filter((o) => o.status === 'pending_review'))
 const totalRecharge = computed(() =>
