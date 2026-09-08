@@ -52,7 +52,7 @@ export class UserService {
       data.realName || null,
       data.studentNo || null,
     );
-    return this.findById(Number(result.lastInsertRowid));
+    return this.findById(Number(result.lastInsertRowid))!;
   }
 
   updateProfile(

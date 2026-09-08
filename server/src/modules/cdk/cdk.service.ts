@@ -36,12 +36,12 @@ export class CdkService {
       const code = this.generateCode();
       try {
         stmt.run(code, value);
-        created.push(this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [code]));
+        created.push(this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [code])!);
       } catch (e) {
         // 唯一约束冲突，重试一次
         const code2 = this.generateCode();
         stmt.run(code2, value);
-        created.push(this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [code2]));
+        created.push(this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [code2])!);
       }
     }
     return created;
@@ -66,14 +66,21 @@ export class CdkService {
     const user = this.userService.findById(userId);
     if (!user) throw new NotFoundException('用户不存在');
 
-    const newBalance = user.balance + cdk.value;
+    const newBalance = +(user.balance + cdk.value).toFixed(2);
 
-    // 事务：更新 cdk 状态 + 用户余额 + 流水
+    // 事务：条件更新 CDK 状态（防并发双花）+ 原子加余额 + 流水
     this.db.transaction(() => {
-      this.db.prepare(
-        `UPDATE cdks SET status = 'used', redeemed_by = ?, redeemed_at = datetime('now','localtime') WHERE id = ?`,
+      const cdkRes = this.db.prepare(
+        `UPDATE cdks SET status = 'used', redeemed_by = ?, redeemed_at = datetime('now','localtime')
+         WHERE id = ? AND status = 'unused'`,
       ).run(userId, cdk.id);
-      this.userService.updateBalance(userId, newBalance);
+      if (cdkRes.changes === 0) {
+        throw new BadRequestException('该 CDK 已被使用，不可重复兑换');
+      }
+      const balRes = this.db
+        .prepare('UPDATE users SET balance = ROUND(balance + ?, 2) WHERE id = ?')
+        .run(cdk.value, userId);
+      if (balRes.changes === 0) throw new NotFoundException('用户不存在');
       this.txService.record({
         userId,
         type: 'recharge',

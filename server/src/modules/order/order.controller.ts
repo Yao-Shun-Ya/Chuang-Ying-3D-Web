@@ -6,7 +6,10 @@ import {
   UseGuards,
   Param,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { OrderService, OrderStatus } from './order.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -37,12 +40,17 @@ class UpdateStatusDto {
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrderController {
-  constructor(private orderService: OrderService) {}
+  constructor(
+    private orderService: OrderService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   /** 学生创建订单 */
   @Post()
   create(@Body() dto: CreateOrderDto, @CurrentUser('sub') userId: number) {
-    return this.orderService.createOrder(userId, dto.modelId, dto.remark, dto.scale);
+    const order = this.orderService.createOrder(userId, dto.modelId, dto.remark, dto.scale);
+    this.cacheManager.del('admin_orders').catch(() => {});
+    return order;
   }
 
   /** 当前用户的订单列表 */
@@ -86,6 +94,8 @@ export class OrderController {
     @Body() dto: UpdateStatusDto,
     @CurrentUser('sub') adminId: number,
   ) {
-    return this.orderService.updateStatus(id, dto.status, adminId, dto.remark);
+    const order = this.orderService.updateStatus(id, dto.status, adminId, dto.remark);
+    this.cacheManager.del('admin_orders').catch(() => {});
+    return order;
   }
 }

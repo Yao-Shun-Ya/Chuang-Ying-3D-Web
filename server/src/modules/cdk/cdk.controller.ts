@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { CdkService } from './cdk.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -55,6 +55,7 @@ export class CdkController {
   @Get('balance')
   balance(@CurrentUser('sub') userId: number) {
     const u = this.userService.findById(userId);
+    if (!u) throw new NotFoundException('用户不存在');
     return { balance: u.balance };
   }
 

@@ -11,12 +11,14 @@ server/data/campus-print.db-shm
 server/data/campus-print.db-wal
 server/data/uploads/*
 server/data/print-tasks/*
+server/data/thumbnails/*
 server/data/avatars/*
 server/admin.key
 
 # Keep directory structure
 !server/data/uploads/.gitkeep
 !server/data/print-tasks/.gitkeep
+!server/data/thumbnails/.gitkeep
 !server/data/avatars/.gitkeep
 
 # Logs

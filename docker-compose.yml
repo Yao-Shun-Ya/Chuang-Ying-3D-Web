@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # ---------- 主应用（NestJS + 前端静态资源） ----------
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: campus-print-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_PATH=/app/data/campus-print.db
+      - STORAGE_PATH=/app/data/uploads
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_EXPIRES_IN=7d
+      - THROTTLE_TTL=60
+      - THROTTLE_LIMIT=10
+      - LOG_LEVEL=info
+      - SMTP_HOST=${SMTP_HOST:-smtp.example.com}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_SECURE=true
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@campus-print.local}
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      - redis
+    networks:
+      - app-net
+
+  # ---------- Redis（BullMQ 队列 + 缓存） ----------
+  redis:
+    image: redis:7-alpine
+    container_name: campus-print-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-net
+
+  # ---------- Nginx 反向代理（HTTPS / 静态资源 / 限流） ----------
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: campus-print-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - server
+    networks:
+      - app-net
+
+volumes:
+  app-data:
+  redis-data:
+
+networks:
+  app-net:
+    driver: bridge

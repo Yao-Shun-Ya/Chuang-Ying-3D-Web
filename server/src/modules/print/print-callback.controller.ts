@@ -50,6 +50,23 @@ export class PrintCallbackController {
     private configService: ConfigService,
   ) {}
 
+  /** 校验回调共享密钥：未配置密钥时仅开发环境放行，生产环境一律拒绝 */
+  private assertCallbackSecret(secret: string | undefined) {
+    const expectedSecret = this.configService.get<string>('printCallbackSecret');
+    if (!expectedSecret) {
+      const nodeEnv = this.configService.get<string>('nodeEnv');
+      if (nodeEnv === 'production') {
+        this.logger.error('PRINT_CALLBACK_SECRET 未配置，生产环境拒绝打印回调');
+        throw new UnauthorizedException('回调服务未配置密钥');
+      }
+      this.logger.warn('PRINT_CALLBACK_SECRET 未配置，开发环境跳过回调鉴权（生产环境必须配置）');
+      return;
+    }
+    if (secret !== expectedSecret) {
+      throw new UnauthorizedException('回调密钥无效');
+    }
+  }
+
   /**
    * 打印完成回调
    * POST /api/print/callback
@@ -61,11 +78,7 @@ export class PrintCallbackController {
     @Body() dto: PrintCallbackDto,
     @Headers('x-callback-secret') secret: string,
   ) {
-    const expectedSecret = this.configService.get<string>('printCallbackSecret');
-    // 若未配置密钥，开发环境下允许跳过（生产环境必须配置）
-    if (expectedSecret && secret !== expectedSecret) {
-      throw new UnauthorizedException('回调密钥无效');
-    }
+    this.assertCallbackSecret(secret);
 
     const order = this.orderService.findByOrderNo(dto.orderNo);
     if (!order) {
@@ -110,10 +123,14 @@ export class PrintCallbackController {
 
   /**
    * 打印状态查询（可选）
-   * 线下主机可查询某订单当前打印状态
+   * 线下主机可查询某订单当前打印状态（需回调密钥，防止订单状态枚举）
    */
   @Post('status')
-  status(@Body('orderNo') orderNo: string) {
+  status(
+    @Body('orderNo') orderNo: string,
+    @Headers('x-callback-secret') secret: string,
+  ) {
+    this.assertCallbackSecret(secret);
     const order = this.orderService.findByOrderNo(orderNo);
     if (!order) throw new BadRequestException('订单不存在');
     return { orderNo, status: order.status };

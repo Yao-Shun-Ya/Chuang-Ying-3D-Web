@@ -38,13 +38,14 @@ export class PrintDispatchService {
 
     const taskDir = join(
       process.cwd(),
-      this.configService.get('storage.printTaskDir'),
+      this.configService.get<string>('storage.printTaskDir') || 'data/print-tasks',
       order.order_no,
     );
     if (!existsSync(taskDir)) mkdirSync(taskDir, { recursive: true });
 
-    // 1. 复制模型文件
-    const destModel = join(taskDir, model.original_name);
+    // 1. 复制模型文件（防御路径穿越：只取文件名部分，禁止任何路径分隔符）
+    const safeName = (model.original_name || 'model.stl').replace(/[/\\]/g, '_').replace(/\.{2,}/g, '.');
+    const destModel = join(taskDir, safeName);
     copyFileSync(model.file_path, destModel);
 
     // 2. 生成任务清单 JSON
@@ -71,7 +72,7 @@ export class PrintDispatchService {
         });
         this.logger.log(`回调通知已发送: ${callbackUrl}`);
       } catch (e) {
-        this.logger.warn(`回调通知失败（不影响本地下发）: ${e.message}`);
+        this.logger.warn(`回调通知失败（不影响本地下发）: ${(e as Error).message}`);
       }
     }
 
@@ -80,7 +81,7 @@ export class PrintDispatchService {
       try {
         await this.device.sendTask(task);
       } catch (e) {
-        this.logger.warn(`打印设备下发失败: ${e.message}`);
+        this.logger.warn(`打印设备下发失败: ${(e as Error).message}`);
       }
     }
 

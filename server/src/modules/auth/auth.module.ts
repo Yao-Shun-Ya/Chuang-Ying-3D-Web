@@ -45,7 +45,7 @@ export class AuthModule implements OnModuleInit {
         realName: '系统管理员',
       });
       console.log(`[Auth] 默认管理员已创建: ${adminUser.username} / ${adminUser.password} (${adminUser.email})`);
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(exists.email)) {
+    } else if (exists.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(exists.email)) {
       // 修正历史数据中管理员邮箱格式不正确的问题
       this.userService.updateEmail(exists.id, adminUser.email);
       console.log(`[Auth] 管理员邮箱已修正为: ${adminUser.email}`);

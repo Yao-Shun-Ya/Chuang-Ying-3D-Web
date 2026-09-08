@@ -12,9 +12,7 @@
     </div>
 
     <div class="rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
-      <div v-if="loading" class="p-12 flex justify-center">
-        <Loader2 class="w-8 h-8 animate-spin text-primary" />
-      </div>
+      <ListSkeleton v-if="loading" :columns="7" :rows="5" />
       <div v-else-if="!orders.length" class="p-16 text-center text-muted-foreground">
         <Package class="w-12 h-12 mx-auto mb-3 opacity-40" />
         <p class="font-medium">暂无订单</p>
@@ -109,7 +107,6 @@ import AmbientBackground from '@/components/AmbientBackground.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { io, Socket } from 'socket.io-client'
 import { getMyOrders, getOrderLogs } from '@/api'
-import { useUserStore } from '@/stores/user'
 import { toast } from '@/composables/useToast'
 import { RefreshCw, Loader2, Package, Eye, X } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
@@ -121,8 +118,8 @@ import TableBody from '@/components/ui/TableBody.vue'
 import TableRow from '@/components/ui/TableRow.vue'
 import TableHead from '@/components/ui/TableHead.vue'
 import TableCell from '@/components/ui/TableCell.vue'
+import ListSkeleton from '@/components/ui/ListSkeleton.vue'
 
-const userStore = useUserStore()
 const orders = ref<any[]>([])
 const loading = ref(false)
 const detailVisible = ref(false)
@@ -132,7 +129,7 @@ let socket: Socket | null = null
 
 onMounted(async () => {
   await loadOrders()
-  socket = io('/orders', { auth: { userId: userStore.user?.id } })
+  socket = io('/orders', { auth: { token: localStorage.getItem('token') } })
   socket.on('order:status_changed', (data) => {
     toast.info(`订单 ${data.orderNo || data.orderId} 状态更新为 ${statusLabel(data.status)}`)
     loadOrders()

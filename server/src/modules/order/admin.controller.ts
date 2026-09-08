@@ -5,18 +5,23 @@ import {
   Body,
   Param,
   UseGuards,
+  UseInterceptors,
   Query,
   Res,
+  Req,
+  Inject,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheKey, CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { OrderService } from './order.service';
-import { PrintDispatchService } from '../print/print-dispatch.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserService } from '../user/user.service';
 import { TransactionService } from '../transaction/transaction.service';
-import { Response } from 'express';
+import { AuditService } from '../admin/audit.service';
+import { Response, Request } from 'express';
 import { IsString, IsNotEmpty } from 'class-validator';
 
 class RejectDto {
@@ -31,26 +36,48 @@ class RejectDto {
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
+@UseInterceptors(CacheInterceptor)
 export class AdminController {
   constructor(
     private orderService: OrderService,
-    private printDispatch: PrintDispatchService,
     private userService: UserService,
     private txService: TransactionService,
+    private auditService: AuditService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  /** 全部订单列表（可按状态筛选） */
+  /** 清除订单列表缓存 */
+  private clearOrdersCache() {
+    this.cacheManager.del('admin_orders').catch(() => {});
+  }
+
+  /** 全部订单列表（可按状态筛选）- 缓存 60 秒 */
   @Get('orders')
+  @CacheKey('admin_orders')
+  @CacheTTL(60)
   listOrders(@Query('status') status?: string) {
     return this.orderService.listAll(status as any);
   }
 
-  /** 审核通过 → approved + 下发打印任务 */
+  /** 审核通过 → approved + 自动下发打印任务 → printing */
   @Post('orders/:id/approve')
-  async approve(@Param('id') id: number, @CurrentUser('sub') adminId: number) {
+  async approve(
+    @Param('id') id: number,
+    @CurrentUser('sub') adminId: number,
+    @CurrentUser('username') adminName: string,
+    @Req() req: Request,
+  ) {
     const order = this.orderService.updateStatus(id, 'approved', adminId, '审核通过');
-    // 触发打印任务下发
-    await this.printDispatch.dispatch(order);
+    this.clearOrdersCache();
+    this.auditService.log({
+      adminId,
+      adminName,
+      action: 'order_approve',
+      targetType: 'order',
+      targetId: id,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
     return order;
   }
 
@@ -60,8 +87,22 @@ export class AdminController {
     @Param('id') id: number,
     @Body() dto: RejectDto,
     @CurrentUser('sub') adminId: number,
+    @CurrentUser('username') adminName: string,
+    @Req() req: Request,
   ) {
-    return this.orderService.reject(id, adminId, dto.reason);
+    const order = this.orderService.reject(id, adminId, dto.reason);
+    this.clearOrdersCache();
+    this.auditService.log({
+      adminId,
+      adminName,
+      action: 'order_reject',
+      targetType: 'order',
+      targetId: id,
+      requestParams: { reason: dto.reason },
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+    return order;
   }
 
   /** 用户列表 */
@@ -78,10 +119,34 @@ export class AdminController {
 
   /** 导出流水 CSV */
   @Get('transactions/export')
-  exportTransactions(@Res() res: Response) {
+  exportTransactions(
+    @Res() res: Response,
+    @CurrentUser('sub') adminId: number,
+    @CurrentUser('username') adminName: string,
+    @Req() req: Request,
+  ) {
     const csv = this.txService.exportCsv();
+    this.auditService.log({
+      adminId,
+      adminName,
+      action: 'export_transactions',
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="transactions_${Date.now()}.csv"`);
     res.send(csv);
+  }
+
+  /** 审计日志列表 */
+  @Get('audit-logs')
+  listAuditLogs(
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
+  ) {
+    return this.auditService.findAll(
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
+    );
   }
 }

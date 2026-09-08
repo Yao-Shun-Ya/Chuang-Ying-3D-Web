@@ -83,14 +83,14 @@
 
 ### 管理员端
 
-| 功能     | 说明                                                             |
-| ------ | -------------------------------------------------------------- |
-| 仪表盘    | 订单 / 收入 / 用户 数据概览                                              |
-| CDK 管理 | 批量生成兑换码，指定面值与数量                                                |
-| 订单审核   | 查看全部订单、模型预览、审核通过（自动下发打印）/ 驳回（自动退款）                                    |
-| 状态流转   | 审核通过自动转 printing → 打印机回调自动转 completed → 手动确认取件 picked\_up |
-| 流水对账   | 全部资金流水，支持 CSV 导出                                               |
-| 用户管理   | 查看用户列表与余额                                                      |
+| 功能     | 说明                                                               |
+| ------ | ---------------------------------------------------------------- |
+| 仪表盘    | 订单 / 收入 / 用户 数据概览                                                |
+| CDK 管理 | 批量生成兑换码，指定面值与数量                                                  |
+| 订单审核   | 查看全部订单、模型预览、审核通过（自动下发打印）/ 驳回（自动退款）                               |
+| 状态流转   | 审核通过自动转 printing → 打印机回调自动转 completed → 手动确认取件 picked\_up        |
+| 流水对账   | 全部资金流水，支持 CSV 导出                                                 |
+| 用户管理   | 查看用户列表与余额                                                        |
 | 打印下发   | 审核通过后自动复制模型到打印目录 + 生成 task.json + HTTP 回调线下主机 + 打印机回调 API 自动回写状态 |
 
 ***
@@ -198,36 +198,42 @@ npm run dev              # 开发模式 http://localhost:8732
 
 ## ⚙️ 环境变量配置
 
-在 `server/` 目录下创建 `.env` 文件（或直接设置系统环境变量），所有变量均有默认值：
+在 `server/` 目录下创建 `.env` 文件（或直接设置系统环境变量），所有变量均有默认值（带 ⚠️ 的生产环境必须配置）：
 
-| 变量                           | 默认值                               | 说明                     |
-| ---------------------------- | --------------------------------- | ---------------------- |
-| `PORT`                       | `8731`                            | 后端端口                   |
-| `JWT_SECRET`                 | `campus-3d-print-secret-key-2026` | JWT 签名密钥（**生产环境务必修改**） |
-| `UPLOAD_DIR`                 | `data/uploads`                    | 模型上传目录                 |
-| `PRINT_TASK_DIR`             | `data/print-tasks`                | 打印任务输出目录               |
-| `DB_FILE`                    | `data/campus-print.db`            | SQLite 数据库文件路径         |
-| `MATERIAL_DENSITY`           | `1.24`                            | 耗材密度 g/cm³（PLA）        |
-| `MATERIAL_PRICE`             | `0.5`                             | 耗材单价 元/g               |
-| `INFILL_RATE`                | `0.2`                             | 默认填充率 0\~1             |
-| `UPLOAD_MAX_MB`              | `50`                              | 单文件最大体积 MB             |
-| `PRINT_CALLBACK_URL`         | _(空)_                             | 线下打印主机 HTTP 回调地址       |
-| `PRINT_CALLBACK_SECRET`      | _(空)_                             | 打印机回调共享密钥（未配置则开发模式跳过校验） |
-| `ADMIN_USER`                 | `admin`                           | 默认管理员用户名               |
-| `ADMIN_PASS`                 | `admin123`                        | 默认管理员密码                |
-| `ADMIN_EMAIL`                | `admin@campus.edu`                | 默认管理员邮箱                |
-| `ADMIN_KEY_SECRET`           | `chuangying-admin-key-2026`       | 管理员密钥文件签名密钥            |
-| `ADMIN_KEY_TTL_HOURS`        | `24`                              | 管理员密钥文件有效期（小时）         |
-| `EMAIL_CODE_TTL`             | `5`                               | 邮箱验证码有效期（分钟）           |
-| `EMAIL_CODE_RESEND_COOLDOWN` | `60`                              | 验证码重发冷却（秒）             |
-| `EMAIL_CODE_MAX_SEND`        | `5`                               | 单邮箱每小时最大发送次数           |
-| `EMAIL_CODE_MAX_ATTEMPTS`    | `5`                               | 单验证码最大验证尝试次数           |
-| `SMTP_HOST`                  | _(空)_                             | SMTP 服务器地址             |
-| `SMTP_PORT`                  | `465`                             | SMTP 端口                |
-| `SMTP_SECURE`                | `true`                            | 是否使用 SSL               |
-| `SMTP_USER`                  | _(空)_                             | SMTP 用户名               |
-| `SMTP_PASS`                  | _(空)_                             | SMTP 密码                |
-| `SMTP_FROM`                  | _(空)_                             | 发件人地址                  |
+| 变量                                | 默认值                               | 说明                                                      |
+| --------------------------------- | --------------------------------- | ------------------------------------------------------- |
+| `NODE_ENV`                        | `development`                     | 运行环境（production 时强制校验安全项）                               |
+| `PORT`                            | `8731`                            | 后端端口                                                    |
+| `JWT_SECRET`                      | `campus-3d-print-secret-key-2026` | ⚠️ JWT 签名密钥（**生产环境必须显式配置，否则启动失败**）                      |
+| `JWT_EXPIRES_IN`                  | `7d`                              | Token 有效期                                               |
+| `CORS_ORIGINS`                    | _(空)_                             | ⚠️ CORS 白名单（逗号分隔，生产环境建议配置，如 `https://print.campus.edu`） |
+| `UPLOAD_DIR`                      | `data/uploads`                    | 模型上传目录                                                  |
+| `PRINT_TASK_DIR`                  | `data/print-tasks`                | 打印任务输出目录                                                |
+| `DB_FILE`                         | `data/campus-print.db`            | SQLite 数据库文件路径                                          |
+| `MATERIAL_DENSITY`                | `1.24`                            | 耗材密度 g/cm³（PLA）                                         |
+| `MATERIAL_PRICE`                  | `0.5`                             | 耗材单价 元/g                                                |
+| `INFILL_RATE`                     | `0.2`                             | 默认填充率 0\~1                                              |
+| `UPLOAD_MAX_MB`                   | `50`                              | 单文件最大体积 MB                                              |
+| `PRINT_CALLBACK_URL`              | _(空)_                             | 线下打印主机 HTTP 回调地址                                        |
+| `PRINT_CALLBACK_SECRET`           | _(空)_                             | ⚠️ 打印机回调共享密钥（**生产环境未配置则拒绝所有回调**）                        |
+| `ADMIN_USER`                      | `admin`                           | 默认管理员用户名                                                |
+| `ADMIN_PASS`                      | `admin123`                        | 默认管理员密码（生产使用会告警提示）                                      |
+| `ADMIN_EMAIL`                     | `admin@campus.edu`                | 默认管理员邮箱                                                 |
+| `ADMIN_KEY_SECRET`                | `chuangying-admin-key-2026`       | 管理员密钥文件签名密钥                                             |
+| `ADMIN_KEY_TTL_HOURS`             | `24`                              | 管理员密钥文件有效期（小时）                                          |
+| `EMAIL_CODE_TTL`                  | `5`                               | 邮箱验证码有效期（分钟）                                            |
+| `EMAIL_CODE_RESEND_COOLDOWN`      | `60`                              | 验证码重发冷却（秒）                                              |
+| `EMAIL_CODE_MAX_SEND`             | `5`                               | 单邮箱每小时最大发送次数                                            |
+| `EMAIL_CODE_MAX_ATTEMPTS`         | `5`                               | 单验证码最大验证尝试次数                                            |
+| `SMTP_HOST`                       | _(空)_                             | SMTP 服务器地址                                              |
+| `SMTP_PORT`                       | `465`                             | SMTP 端口                                                 |
+| `SMTP_SECURE`                     | `true`                            | 是否使用 SSL                                                |
+| `SMTP_USER`                       | _(空)_                             | SMTP 用户名                                                |
+| `SMTP_PASS`                       | _(空)_                             | SMTP 密码                                                 |
+| `SMTP_FROM`                       | _(空)_                             | 发件人地址                                                   |
+| `THROTTLE_TTL` / `THROTTLE_LIMIT` | `60` / `10`                       | 全局接口限流（秒 / 次数，按 IP）                                     |
+| `REDIS_HOST` / `REDIS_PORT`       | `localhost` / `6379`              | Redis 连接（不可用时自动回退内存缓存）                                  |
+| `LOG_LEVEL`                       | `info`                            | 日志级别（error/warn/info/debug）                             |
 
 > **提示**：未配置 SMTP 时，邮箱验证码会输出到后端控制台，便于本地测试。
 
@@ -431,7 +437,7 @@ function parseBinaryStl(buf) {
 默认：填充率 0.2，PLA 密度 1.24 g/cm³，单价 0.5 元/g
 ```
 
-### 3. CDK 兑换（事务 + 防重复）
+### 3. CDK 兑换（事务 + 原子条件更新防双花）
 
 ```typescript
 // server/src/modules/cdk/cdk.service.ts
@@ -439,12 +445,16 @@ redeem(code, userId) {
   const cdk = db.get('SELECT * FROM cdks WHERE code = ?', [code]);
   if (!cdk) throw new NotFoundException('CDK 不存在');
   if (cdk.status === 'used') throw new BadRequestException('CDK 已被使用');
-  const newBalance = user.balance + cdk.value;
   this.db.transaction(() => {
-    db.prepare(`UPDATE cdks SET status='used', redeemed_by=?, redeemed_at=datetime('now','localtime') WHERE id=?`)
-      .run(userId, cdk.id);
-    userService.updateBalance(userId, newBalance);
-    txService.record({ userId, type: 'recharge', amount: cdk.value, balanceAfter: newBalance, relatedId: cdk.id });
+    // 条件更新：WHERE status='unused'，并发下只有一个请求能成功（changes>0）
+    const res = db.prepare(
+      `UPDATE cdks SET status='used', redeemed_by=?, redeemed_at=datetime('now','localtime')
+       WHERE id=? AND status='unused'`
+    ).run(userId, cdk.id);
+    if (res.changes === 0) throw new BadRequestException('CDK 已被使用');
+    // 原子加余额（ROUND 保持两位小数，避免浮点尾差）
+    db.prepare('UPDATE users SET balance = ROUND(balance + ?, 2) WHERE id = ?').run(cdk.value, userId);
+    txService.record({ userId, type: 'recharge', amount: cdk.value, relatedId: cdk.id });
   });
 }
 ```
@@ -466,20 +476,22 @@ if (!VALID_TRANSITIONS[order.status].includes(toStatus)) {
 }
 ```
 
-### 5. 下单扣费（余额校验 + 事务）
+### 5. 下单扣费（原子条件扣减，防并发超扣）
 
 ```typescript
 // server/src/modules/order/order.service.ts
 createOrder(userId, modelId) {
   const model = modelService.findById(modelId);
   const user = userService.findById(userId);
-  if (user.balance < model.estimated_cost)
-    throw new BadRequestException('余额不足');
-  const newBalance = +(user.balance - model.estimated_cost).toFixed(2);
+  if (user.balance < cost) throw new BadRequestException('余额不足');
   this.db.transaction(() => {
-    userService.updateBalance(userId, newBalance);
+    // 原子条件扣减：WHERE balance >= ?，余额不足则 changes=0 抛错回滚（并发下不会超扣）
+    const res = db.prepare(
+      'UPDATE users SET balance = ROUND(balance - ?, 2) WHERE id = ? AND balance >= ?'
+    ).run(cost, userId, cost);
+    if (res.changes === 0) throw new BadRequestException('余额不足');
     const orderId = insertOrder(...);
-    txService.record({ type: 'deduct', amount: cost, balanceAfter: newBalance, relatedId: orderId });
+    txService.record({ type: 'deduct', amount: cost, relatedId: orderId });
     insertOrderLog({ to_status: 'pending_review', operatorId: userId });
   });
 }
@@ -509,20 +521,25 @@ pending_review ──管理员审核通过──▶ approved
                           系统自动：下发打印任务
                                        ▼
                                   printing
-                                       │
-                    打印机回调 POST /api/print/callback
-                                       ▼
-                                  completed
-                                       │
+                                 │        │
+              打印机回调 result=success    打印机回调 result=failed
+                                 ▼        ▼
+                             completed   rejected（自动退款）
+                                 │
                               管理员确认取件
-                                       ▼
-                                  picked_up
+                                 ▼
+                              picked_up
 ```
 
-- **审核通过** → 系统自动调用 `dispatch()` 下发打印任务，并自动将状态流转为 `printing`，无需管理员手动点击
-- **打印完成** → 线下主机/打印机调用回调 API，系统自动将状态流转为 `completed`
-- **打印失败** → 回调 `result: 'failed'`，系统自动驳回订单并退款
-- **取件确认** → 需管理员手动确认（`picked_up`）
+* **审核通过** → 系统自动调用 `dispatch()` 下发打印任务，并自动将状态流转为 `printing`，无需管理员手动点击
+
+* **打印完成** → 线下主机/打印机调用回调 API（result=success），系统自动将状态流转为 `completed`
+
+* **打印失败** → 回调 `result: 'failed'`，系统自动驳回订单并退款（`printing` 状态下驳回同样触发退款）
+
+* **管理员手动驳回** → `pending_review` 或 `printing` 状态下均可驳回并自动退款（条件更新防重复退款）
+
+* **取件确认** → 需管理员手动确认（`picked_up`）
 
 ### 7. 打印机回调 API
 
@@ -530,7 +547,11 @@ pending_review ──管理员审核通过──▶ approved
 
 **接口：** `POST /api/print/callback`
 
-**鉴权：** 请求头携带 `x-callback-secret`，值需与服务端 `PRINT_CALLBACK_SECRET` 环境变量一致。未配置该变量时开发模式跳过校验。
+**鉴权：** 请求头携带 `x-callback-secret`，值需与服务端 `PRINT_CALLBACK_SECRET` 环境变量一致。
+
+* 已配置密钥：密钥不匹配返回 401
+
+* 未配置密钥：**开发环境**跳过校验（控制台告警）；**生产环境直接拒绝所有回调**（401，需配置密钥后重启）
 
 **请求体：**
 
@@ -544,13 +565,13 @@ pending_review ──管理员审核通过──▶ approved
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `orderNo` | string | ✅ | 订单号 |
-| `result` | `'success' \| 'failed'` | 否 | 打印结果，默认 `success` |
-| `printerName` | string | 否 | 打印机名称 |
-| `duration` | string | 否 | 打印耗时 |
-| `message` | string | 否 | 备注信息 |
+| 字段            | 类型                      | 必填 | 说明                |
+| ------------- | ----------------------- | -- | ----------------- |
+| `orderNo`     | string                  | ✅  | 订单号               |
+| `result`      | `'success' \| 'failed'` | 否  | 打印结果，默认 `success` |
+| `printerName` | string                  | 否  | 打印机名称             |
+| `duration`    | string                  | 否  | 打印耗时              |
+| `message`     | string                  | 否  | 备注信息              |
 
 **响应：**
 
@@ -558,7 +579,7 @@ pending_review ──管理员审核通过──▶ approved
 { "success": true, "status": "completed", "orderNo": "ORD1700000000ABCD" }
 ```
 
-**状态查询接口：** `POST /api/print/status`，请求体 `{ "orderNo": "..." }`，返回订单当前打印状态。
+**状态查询接口：** `POST /api/print/status`，请求体 `{ "orderNo": "..." }`，需携带同样的 `x-callback-secret` 请求头（防止订单状态枚举），返回订单当前打印状态。
 
 ***
 
@@ -566,14 +587,17 @@ pending_review ──管理员审核通过──▶ approved
 
 ### 认证 Auth
 
-| 方法   | 路径                         | 说明                | 权限 |
-| ---- | -------------------------- | ----------------- | -- |
-| POST | `/api/auth/register`       | 注册（用户名 + 密码 + 学号） | 公开 |
-| POST | `/api/auth/login`          | 登录，返回 JWT         | 公开 |
-| GET  | `/api/auth/me`             | 获取当前用户信息          | 登录 |
-| POST | `/api/auth/send-code`      | 发送邮箱验证码           | 公开 |
-| POST | `/api/auth/verify-code`    | 验证邮箱验证码           | 公开 |
-| POST | `/api/auth/reset-password` | 通过密钥文件重置管理员密码     | 公开 |
+| 方法    | 路径                                | 说明                | 权限          |
+| ----- | --------------------------------- | ----------------- | ----------- |
+| POST  | `/api/auth/send-code`             | 发送邮箱验证码           | 公开          |
+| POST  | `/api/auth/register`              | 注册（邮箱 + 验证码 + 密码） | 公开          |
+| POST  | `/api/auth/login`                 | 登录，返回 JWT         | 公开          |
+| GET   | `/api/auth/me`                    | 获取当前用户信息          | 登录          |
+| PATCH | `/api/auth/me`                    | 更新个人信息（姓名/学号/头像）  | 登录          |
+| POST  | `/api/auth/change-password`       | 已登录用户改密（邮箱验证码）    | 登录          |
+| POST  | `/api/auth/reset-password`        | 忘记密码重置（邮箱 + 验证码）  | 公开          |
+| POST  | `/api/auth/avatar`                | 上传头像（裁切后图片）       | 登录          |
+| POST  | `/api/auth/admin/change-password` | 管理员通过密钥文件改密       | admin + Key |
 
 ### CDK
 
@@ -586,11 +610,12 @@ pending_review ──管理员审核通过──▶ approved
 
 ### 模型 Model
 
-| 方法   | 路径                     | 说明                        | 权限 |
-| ---- | ---------------------- | ------------------------- | -- |
-| POST | `/api/models/upload`   | 上传模型（multipart/form-data） | 登录 |
-| GET  | `/api/models/:id`      | 获取模型信息                    | 登录 |
-| GET  | `/api/models/:id/file` | 下载模型文件                    | 登录 |
+| 方法   | 路径                          | 说明                        | 权限     |
+| ---- | --------------------------- | ------------------------- | ------ |
+| POST | `/api/models/upload`        | 上传模型（multipart/form-data） | 登录     |
+| GET  | `/api/models`               | 我的模型列表（含体积/费用/缩略图路径）      | 登录     |
+| GET  | `/api/models/:id/file`      | 下载模型文件（仅所有者/管理员）          | 登录+所有权 |
+| GET  | `/api/models/:id/thumbnail` | 模型线框缩略图 PNG               | 公开     |
 
 ### 订单 Order
 
@@ -619,23 +644,40 @@ pending_review ──管理员审核通过──▶ approved
 | 方法   | 路径                    | 说明               | 权限   |
 | ---- | --------------------- | ---------------- | ---- |
 | POST | `/api/print/callback` | 打印完成回调（自动更新订单状态） | 回调密钥 |
-| POST | `/api/print/status`   | 查询订单打印状态         | 公开   |
+| POST | `/api/print/status`   | 查询订单打印状态         | 回调密钥 |
+
+### 系统观测
+
+| 方法  | 路径          | 说明                       | 权限 |
+| --- | ----------- | ------------------------ | -- |
+| GET | `/health`   | 健康检查（数据库/磁盘/内存）          | 公开 |
+| GET | `/metrics`  | Prometheus 指标端点          | 公开 |
+| GET | `/api-docs` | Swagger API 文档（生产环境自动关闭） | 公开 |
 
 ***
 
 ## 🔐 安全机制
 
-| 机制     | 实现                                      |
-| ------ | --------------------------------------- |
-| 密码存储   | bcryptjs 哈希，cost factor = 10            |
-| 鉴权     | JWT (HS256)，有效期 7 天，Passport 策略校验       |
-| 角色权限   | `@Roles('admin')` 装饰器 + `RolesGuard` 守卫 |
-| 余额操作   | SQLite 事务包裹，扣费 / 退款 / 流水原子性             |
-| 文件上传   | 后缀白名单（stl/obj/3mf）+ 大小限制（默认 50MB）       |
-| CDK 防重 | 兑换时检查 status，事务内更新                      |
-| 订单状态   | 状态机校验，非法迁移直接拒绝                          |
-| 邮箱限流   | 单邮箱每小时 5 次发送，单验证码 5 次尝试                 |
-| 管理员改密  | HMAC-SHA256 签名的密钥文件，24 小时有效期            |
+| 机制        | 实现                                                                                             |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| 密码存储      | bcryptjs 哈希，cost factor = 10                                                                   |
+| 鉴权        | JWT (HS256)，有效期 7 天，Passport 策略校验                                                              |
+| JWT 密钥    | 生产环境（`NODE_ENV=production`）未显式配置 `JWT_SECRET` 或使用默认值 → **启动失败**                                |
+| 角色权限      | `@Roles('admin')` 装饰器 + `RolesGuard` 守卫                                                        |
+| 接口限流      | ThrottlerGuard 全局守卫（10 次/分钟/IP）；登录/注册 5 次/分钟，验证码发送 3 次/分钟                                      |
+| 余额操作      | SQLite 事务 + 原子条件更新（`WHERE balance >= ?` 防超扣、`WHERE status='unused'` 防双花），金额 `ROUND(x,2)` 防浮点尾差 |
+| CDK 防重    | 事务内条件更新 `WHERE status='unused'`，并发双花被拒绝                                                        |
+| 退款防重      | 驳回退款为条件更新（状态不满足则 `changes=0` 回滚），并发下不会重复退款                                                     |
+| 文件上传      | 后缀白名单（stl/obj/3mf）+ 大小限制（默认 50MB）+ 原始文件名净化（防路径穿越）                                              |
+| 文件访问      | 模型文件仅可通过 `/api/models/:id/file` 下载（所有者/管理员），`/uploads/` 静态目录已关闭                                |
+| 打印回调      | `x-callback-secret` 共享密钥；生产环境未配置密钥一律拒绝                                                         |
+| WebSocket | 连接需携带 JWT（`auth.token`），从 token 解出身份，禁止客户端自报 userId                                            |
+| CORS      | `CORS_ORIGINS` 白名单（逗号分隔）；未配置时反射任意来源（仅开发）                                                       |
+| Swagger   | 生产环境自动关闭 `/api-docs`                                                                           |
+| 订单状态      | 状态机校验，非法迁移直接拒绝                                                                                 |
+| 邮箱限流      | 单邮箱每小时 5 次发送，单验证码 5 次尝试                                                                        |
+| 数据唯一性     | users.email 唯一索引（启动迁移自动创建）                                                                     |
+| 管理员改密     | HMAC-SHA256 签名的密钥文件，24 小时有效期                                                                   |
 
 ***
 
@@ -653,16 +695,20 @@ node scripts/gen-admin-key.js
 
 ### 使用密钥文件重置密码
 
-将 `admin.key` 文件放到 `server/` 目录下，调用：
+密钥文件生成后，调用（需先以任意管理员身份登录获取 JWT）：
 
 ```
-POST /api/auth/reset-password
+POST /api/auth/admin/change-password
+Authorization: Bearer <管理员token>
 {
+  "keyContent": "<admin.key 文件内容>",
   "newPassword": "new-password"
 }
 ```
 
-后端会验证密钥文件的签名与有效期（默认 24 小时），验证通过后重置管理员密码。
+后端会同时校验：当前登录用户是管理员 + 密钥文件的签名与有效期（默认 24 小时），验证通过后重置密码。
+
+> 普通用户的找回密码走 `POST /api/auth/reset-password`（邮箱 + 验证码方式，无需登录）。
 
 ***
 
@@ -694,12 +740,23 @@ SMTP_FROM=创影3D <your-email@qq.com>
 
 将 `server/` 与 `web/` 部署在校内本地主机：
 
+> **生产环境前置检查**（`NODE_ENV=production` 时启动强制校验）：
+>
+> * 必须显式配置 `JWT_SECRET`（≥16 位随机串，否则启动失败）
+>
+> * 必须配置 `PRINT_CALLBACK_SECRET`（否则打印回调全部被拒绝）
+>
+> * 建议配置 `CORS_ORIGINS` 白名单（如 `https://print.campus.edu`）
+>
+> * 生产环境会自动关闭 Swagger（`/api-docs` 返回 404）
+
 ```bash
 # 1. 后端
 cd server
 npm ci
 npm run build
-node --experimental-sqlite dist/main
+NODE_ENV=production JWT_SECRET=<随机密钥> PRINT_CALLBACK_SECRET=<回调密钥> \
+  node --experimental-sqlite dist/main
 
 # 2. 前端（构建后由 nginx 或 serve 托管 dist）
 cd web
@@ -769,10 +826,19 @@ server {
 A: 需要 Node.js >= 22，并使用 `--experimental-sqlite` 标志。`package.json` 的脚本已包含该标志。
 
 **Q: 前端请求后端报 CORS 错误？**
-A: 开发模式下 Vite 已配置代理（`/api` → `localhost:8731`）。生产环境请通过 Nginx 反向代理，确保前后端同域。
+A: 开发模式下 Vite 已配置代理（`/api` → `localhost:8731`）。生产环境请通过 Nginx 反向代理，确保前后端同域；若需跨域部署，配置 `CORS_ORIGINS` 白名单（逗号分隔多个来源）。
+
+**Q: 生产环境启动报"JWT\_SECRET 必须显式配置"？**
+A: 安全设计——生产环境（`NODE_ENV=production`）禁止使用默认密钥。用 `openssl rand -hex 32` 生成随机密钥配置到环境变量即可。
+
+**Q: 生产环境打印机回调一直返回 401？**
+A: 生产环境必须配置 `PRINT_CALLBACK_SECRET` 并在回调请求头携带 `x-callback-secret: <相同的值>`。
+
+**Q: 生产环境 /api-docs 打不开（404）？**
+A: 正常现象，生产环境自动关闭 Swagger 防止接口结构泄露。开发环境（`NODE_ENV=development`）正常访问 <http://localhost:8731/api-docs>。
 
 **Q: 管理员密码忘了怎么办？**
-A: 使用 `node scripts/gen-admin-key.js` 生成密钥文件，放到 `server/` 目录后调用 `/api/auth/reset-password` 重置。
+A: 使用 `node scripts/gen-admin-key.js` 生成密钥文件，以任意管理员身份登录后调用 `/api/auth/admin/change-password`（携带 keyContent + newPassword）重置。
 
 **Q: 邮箱验证码没收到？**
 A: 未配置 SMTP 时验证码会输出到后端控制台。生产环境请配置 SMTP 环境变量。

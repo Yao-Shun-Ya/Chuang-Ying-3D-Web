@@ -111,11 +111,12 @@
 
 <script setup lang="ts">
 import AmbientBackground from '@/components/AmbientBackground.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { uploadModel, createOrder } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { toast } from '@/composables/useToast'
+import { useDraft } from '@/composables/useDraft'
 import { UploadCloud, CheckCircle2, Loader2 } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 import ModelViewer from '@/components/ModelViewer.vue'
@@ -126,7 +127,29 @@ const fileInput = ref<HTMLInputElement>()
 const result = ref<any>(null)
 const submitting = ref(false)
 const dragging = ref(false)
-const scale = ref(1)
+
+// 草稿数据：缩放倍数 + 模型解析结果摘要
+const draft = reactive({
+  scale: 1,
+  modelId: null as number | null,
+  modelInfo: null as any,
+})
+
+// 自动保存草稿到 localStorage
+const { clear: clearDraft, restored } = useDraft('upload-form', draft)
+
+// 页面挂载后，若有草稿则恢复模型解析结果
+onMounted(() => {
+  if (draft.modelInfo && draft.modelId) {
+    result.value = { id: draft.modelId, ...draft.modelInfo }
+    toast.info('已恢复上次未提交的表单')
+  }
+})
+
+const scale = computed({
+  get: () => draft.scale,
+  set: (v) => { draft.scale = v },
+})
 
 const modelFileUrl = computed(() => {
   if (!result.value?.id) return ''
@@ -170,8 +193,17 @@ function onFileSelect(e: Event) {
 async function upload(file: File) {
   if (!validate(file)) return
   try {
-    result.value = await uploadModel(file)
-    scale.value = 1
+    const res = await uploadModel(file)
+    result.value = res
+    draft.scale = 1
+    draft.modelId = res.id
+    draft.modelInfo = {
+      originalName: res.originalName,
+      format: res.format,
+      fileSize: res.fileSize,
+      volume: res.volume,
+      estimatedCost: res.estimatedCost,
+    }
     toast.success('模型解析成功')
   } catch {
     // error handled by interceptor
@@ -190,6 +222,7 @@ async function submitOrder() {
     const order = await createOrder(result.value.id, undefined, scale.value)
     toast.success(`订单已提交，订单号：${order.order_no}`)
     userStore.setBalance(userStore.user!.balance - Number(scaledCost.value))
+    clearDraft() // 下单成功后清除草稿
     router.push('/orders')
   } finally {
     submitting.value = false

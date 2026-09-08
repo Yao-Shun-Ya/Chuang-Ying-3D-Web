@@ -44,7 +44,7 @@ export class AuthService {
         });
         this.logger.log(`SMTP 邮件服务已初始化: ${smtp.host}`);
       } catch (e) {
-        this.logger.warn(`SMTP 初始化失败，将使用控制台演示模式: ${e.message}`);
+        this.logger.warn(`SMTP 初始化失败，将使用控制台演示模式: ${(e as Error).message}`);
         this.mailer = null;
       }
     } else {
@@ -73,7 +73,7 @@ export class AuthService {
        WHERE email = ? AND created_at >= datetime('now','localtime','-1 hour')`,
       [email],
     );
-    if (sendCount.cnt >= cfg.maxSendPerHour) {
+    if (sendCount!.cnt >= cfg.maxSendPerHour) {
       throw new BadRequestException(`该邮箱发送过于频繁，请稍后再试（${cfg.maxSendPerHour} 次/小时）`);
     }
 
@@ -87,7 +87,7 @@ export class AuthService {
         `SELECT CASE WHEN ? >= datetime('now','localtime','-${cfg.resendCooldownSec} seconds') THEN 1 ELSE 0 END as within`,
         [last.created_at],
       );
-      if (cd.within) {
+      if (cd!.within) {
         throw new BadRequestException(`请 ${cfg.resendCooldownSec} 秒后再获取验证码`);
       }
     }
@@ -133,7 +133,7 @@ export class AuthService {
         });
         this.logger.log(`验证码邮件已发送至 ${email}`);
       } catch (e) {
-        this.logger.error(`验证码邮件发送失败: ${e.message}，控制台输出: ${code}`);
+        this.logger.error(`验证码邮件发送失败: ${(e as Error).message}，控制台输出: ${code}`);
       }
     } else {
       // 演示模式：仅控制台输出
@@ -158,7 +158,7 @@ export class AuthService {
       `SELECT CASE WHEN ? < datetime('now','localtime') THEN 1 ELSE 0 END as is_expired`,
       [rec.expires_at],
     );
-    if (expired.is_expired) {
+    if (expired!.is_expired) {
       this.db.prepare('DELETE FROM email_codes WHERE email = ?').run(email);
       return false;
     }

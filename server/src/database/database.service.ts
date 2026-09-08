@@ -11,13 +11,13 @@ import { join } from 'path';
  */
 @Injectable()
 export class DatabaseService implements OnModuleInit {
-  public db: DatabaseSync;
+  public db!: DatabaseSync;
   private readonly logger = new Logger(DatabaseService.name);
 
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    const dbFile = this.configService.get<string>('storage.dbFile');
+    const dbFile = this.configService.get<string>('storage.dbFile') ?? 'data/campus-print.db';
     const dir = join(process.cwd(), 'data');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
@@ -32,21 +32,38 @@ export class DatabaseService implements OnModuleInit {
 
   /** 旧库结构升级：缺列则 ALTER TABLE 补列 */
   private migrate() {
-    const cols = this.db
+    // users 表迁移
+    const userCols = this.db
       .prepare("PRAGMA table_info(users)")
       .all() as { name: string }[];
-    const names = new Set(cols.map((c) => c.name));
-    const addIfMissing = (col: string, def: string) => {
-      if (!names.has(col)) {
+    const userNames = new Set(userCols.map((c) => c.name));
+    const addUserCol = (col: string, def: string) => {
+      if (!userNames.has(col)) {
         this.db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`);
         this.logger.log(`迁移：users 表新增列 ${col}`);
       }
     };
-    addIfMissing('email', 'TEXT');
-    addIfMissing('avatar', 'TEXT');
-    addIfMissing('display_name', 'TEXT');
-    // 为旧用户回填 email = username
+    addUserCol('email', 'TEXT');
+    addUserCol('avatar', 'TEXT');
+    addUserCol('display_name', 'TEXT');
     this.db.exec(`UPDATE users SET email = username WHERE email IS NULL`);
+
+    // models 表迁移
+    const modelCols = this.db
+      .prepare("PRAGMA table_info(models)")
+      .all() as { name: string }[];
+    const modelNames = new Set(modelCols.map((c) => c.name));
+    if (!modelNames.has('thumbnail_path')) {
+      this.db.exec(`ALTER TABLE models ADD COLUMN thumbnail_path TEXT`);
+      this.logger.log(`迁移：models 表新增列 thumbnail_path`);
+    }
+
+    // email 唯一索引（存量数据若有重复则跳并告警，由应用层保证不再产生重复）
+    try {
+      this.db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL`);
+    } catch (e) {
+      this.logger.warn(`email 唯一索引创建失败（存在重复邮箱，请人工清理）: ${(e as Error).message}`);
+    }
   }
 
   /** 初始化全部业务表 */
@@ -97,6 +114,7 @@ export class DatabaseService implements OnModuleInit {
         format TEXT NOT NULL,
         volume REAL NOT NULL DEFAULT 0,
         estimated_cost REAL NOT NULL DEFAULT 0,
+        thumbnail_path TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
@@ -135,9 +153,25 @@ export class DatabaseService implements OnModuleInit {
         created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
       );
 
+      CREATE TABLE IF NOT EXISTS admin_audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_id INTEGER NOT NULL,
+        admin_name TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target_type TEXT,
+        target_id INTEGER,
+        request_params TEXT,
+        ip TEXT,
+        user_agent TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY (admin_id) REFERENCES users(id)
+      );
+
       CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
       CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
       CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_admin ON admin_audit_logs(admin_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_action ON admin_audit_logs(action);
     `);
   }
 
@@ -145,15 +179,15 @@ export class DatabaseService implements OnModuleInit {
     return this.db.prepare(sql);
   }
 
-  run(sql: string, params: any[] = []) {
+  run(sql: string, params: unknown[] = []) {
     return this.db.prepare(sql).run(...params);
   }
 
-  get<T = any>(sql: string, params: any[] = []): T | undefined {
-    return this.db.prepare(sql).get(...params) as T;
+  get<T = unknown>(sql: string, params: unknown[] = []): T | undefined {
+    return this.db.prepare(sql).get(...params) as T | undefined;
   }
 
-  all<T = any>(sql: string, params: any[] = []): T[] {
+  all<T = unknown>(sql: string, params: unknown[] = []): T[] {
     return this.db.prepare(sql).all(...params) as T[];
   }
 

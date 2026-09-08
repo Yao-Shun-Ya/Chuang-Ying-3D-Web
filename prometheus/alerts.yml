@@ -1,0 +1,52 @@
+groups:
+  - name: system_alerts
+    rules:
+      # 磁盘使用率 > 80% 告警
+      - alert: DiskSpaceHigh
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "磁盘使用率超过 80%"
+          description: "磁盘当前使用率 {{ $value }}%，请及时清理或扩容"
+
+      # 磁盘使用率 > 90% 严重告警
+      - alert: DiskSpaceCritical
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "磁盘使用率超过 90%（严重）"
+          description: "磁盘当前使用率 {{ $value }}%，系统即将不可用"
+
+      # 内存使用率 > 85%
+      - alert: MemoryHigh
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存使用率超过 85%"
+          description: "内存当前使用率 {{ $value }}%"
+
+      # CPU 使用率 > 80%
+      - alert: CPUHigh
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 使用率超过 80%"
+          description: "CPU 当前使用率 {{ $value }}%"
+
+      # 应用宕机
+      - alert: AppDown
+        expr: up{job="campus-print-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "应用服务不可用"
+          description: "campus-print 应用已宕机超过 1 分钟"

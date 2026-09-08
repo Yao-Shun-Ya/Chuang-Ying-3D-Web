@@ -124,7 +124,25 @@ async function loadList() {
 }
 
 function preview(row: any) {
-  window.open(`/api/models/${row.model_id}/file`, '_blank')
+  const token = localStorage.getItem('token') || ''
+  fetch(`/api/models/${row.model_id}/file`, {
+    headers: { Authorization: 'Bearer ' + token },
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error('下载失败')
+      return res.blob()
+    })
+    .then((blob) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = row.model_name || `model_${row.model_id}.stl`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    })
+    .catch(() => toast.error('模型文件下载失败'))
 }
 
 async function approve(row: any) {

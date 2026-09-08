@@ -1,0 +1,88 @@
+/**
+ * 业务错误码枚举
+ * 规则：
+ * - 0: 成功
+ * - 1xxxx: 通用错误
+ * - 2xxxx: 认证/授权错误
+ * - 3xxxx: 业务逻辑错误（订单、CDK、模型等）
+ * - 4xxxx: 资源错误
+ * - 5xxxx: 第三方/系统错误
+ */
+export enum ErrorCode {
+  SUCCESS = 0,
+
+  // 通用错误 1xxxx
+  UNKNOWN_ERROR = 10000,
+  VALIDATION_ERROR = 10001,
+  PARAM_INVALID = 10002,
+  RATE_LIMITED = 10003,
+
+  // 认证授权 2xxxx
+  UNAUTHORIZED = 20001,
+  TOKEN_EXPIRED = 20002,
+  TOKEN_INVALID = 20003,
+  FORBIDDEN = 20004,
+  ADMIN_ONLY = 20005,
+
+  // 业务逻辑 3xxxx
+  BALANCE_INSUFFICIENT = 30001,
+  CDK_INVALID = 30002,
+  CDK_USED = 30003,
+  CDK_EXPIRED = 30004,
+  ORDER_STATUS_INVALID = 30005,
+  ORDER_NOT_FOUND = 30006,
+  MODEL_PARSE_FAILED = 30007,
+  MODEL_NOT_FOUND = 30008,
+  EMAIL_CODE_INVALID = 30009,
+  EMAIL_CODE_EXPIRED = 30010,
+  EMAIL_SEND_FREQUENT = 30011,
+  USER_EXISTS = 30012,
+  USER_NOT_FOUND = 30013,
+  PASSWORD_INCORRECT = 30014,
+  EMAIL_NOT_VERIFIED = 30015,
+
+  // 资源错误 4xxxx
+  FILE_TOO_LARGE = 40001,
+  FILE_TYPE_UNSUPPORTED = 40002,
+  STORAGE_FULL = 40003,
+
+  // 系统/第三方 5xxxx
+  DB_ERROR = 50001,
+  EMAIL_SERVICE_ERROR = 50002,
+  PRINT_DISPATCH_FAILED = 50003,
+}
+
+/** 错误码 → HTTP 状态码映射 */
+export const ERROR_HTTP_STATUS: Record<number, number> = {
+  [ErrorCode.SUCCESS]: 200,
+  [ErrorCode.UNKNOWN_ERROR]: 500,
+  [ErrorCode.VALIDATION_ERROR]: 400,
+  [ErrorCode.PARAM_INVALID]: 400,
+  [ErrorCode.RATE_LIMITED]: 429,
+  [ErrorCode.UNAUTHORIZED]: 401,
+  [ErrorCode.TOKEN_EXPIRED]: 401,
+  [ErrorCode.TOKEN_INVALID]: 401,
+  [ErrorCode.FORBIDDEN]: 403,
+  [ErrorCode.ADMIN_ONLY]: 403,
+  [ErrorCode.BALANCE_INSUFFICIENT]: 400,
+  [ErrorCode.CDK_INVALID]: 400,
+  [ErrorCode.CDK_USED]: 400,
+  [ErrorCode.CDK_EXPIRED]: 400,
+  [ErrorCode.ORDER_STATUS_INVALID]: 400,
+  [ErrorCode.ORDER_NOT_FOUND]: 404,
+  [ErrorCode.MODEL_PARSE_FAILED]: 400,
+  [ErrorCode.MODEL_NOT_FOUND]: 404,
+  [ErrorCode.EMAIL_CODE_INVALID]: 400,
+  [ErrorCode.EMAIL_CODE_EXPIRED]: 400,
+  [ErrorCode.EMAIL_SEND_FREQUENT]: 429,
+  [ErrorCode.USER_EXISTS]: 400,
+  [ErrorCode.USER_NOT_FOUND]: 404,
+  [ErrorCode.PASSWORD_INCORRECT]: 400,
+  [ErrorCode.EMAIL_NOT_VERIFIED]: 403,
+  [ErrorCode.FILE_TOO_LARGE]: 413,
+  [ErrorCode.FILE_TYPE_UNSUPPORTED]: 415,
+  [ErrorCode.STORAGE_FULL]: 507,
+  [ErrorCode.DB_ERROR]: 500,
+  [ErrorCode.EMAIL_SERVICE_ERROR]: 502,
+  [ErrorCode.PRINT_DISPATCH_FAILED]: 500,
+};

@@ -8,6 +8,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -16,6 +17,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -30,16 +32,19 @@ export class AuthController {
   ) {}
 
   @Post('send-code')
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 验证码发送：3 次/分钟（叠加全局限流）
   sendCode(@Body() body: { email: string }) {
     return this.authService.sendCode(body.email);
   }
 
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 注册：5 次/分钟
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 登录：5 次/分钟，防暴力破解
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
@@ -47,8 +52,9 @@ export class AuthController {
   /** 当前登录用户信息 */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: any) {
+  me(@CurrentUser() user: { sub: number }) {
     const full = this.userService.findById(user.sub);
+    if (!full) throw new NotFoundException('用户不存在');
     return {
       id: full.id,
       username: full.username,
@@ -70,6 +76,7 @@ export class AuthController {
     @Body() body: { realName?: string; studentNo?: string; displayName?: string; avatar?: string },
   ) {
     const u = this.userService.updateProfile(userId, body);
+    if (!u) throw new NotFoundException('用户不存在');
     return {
       id: u.id,
       username: u.username,
@@ -94,6 +101,7 @@ export class AuthController {
 
   /** 忘记密码重置（公开接口，无需登录） */
   @Post('reset-password')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 重置密码：5 次/分钟
   resetPassword(@Body() body: { email: string; code: string; newPassword: string }) {
     return this.authService.resetPassword(body.email, body.code, body.newPassword);
   }
