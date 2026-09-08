@@ -72,25 +72,28 @@
 | 功能      | 说明                                              |
 | ------- | ----------------------------------------------- |
 | 注册 / 登录 | 学号注册，bcrypt 密码哈希，JWT 鉴权                         |
-| CDK 充值  | 输入 CDK 兑换码，自动增加虚拟余额，防重复兑换                       |
+| CDK 充值  | 输入 CDK 兑换码，自动增加虚拟余额，事务级防重复兑换                    |
 | 资金流水    | 充值 / 扣费 / 退款全记录，操作后余额可追溯                        |
-| 模型上传    | 支持 STL / OBJ / 3MF，自动校验格式与大小                    |
-| 体积解析    | 三角网格积分算法，精准计算模型体积                               |
-| 费用估算    | 体积 × 填充率 × 耗材密度 × 单价，实时计价                       |
+| 模型上传    | 支持 STL / OBJ / 3MF，自动校验格式与大小，文件名净化              |
+| 体积解析    | 流式三角网格积分（64KB 分块），大文件低内存；WebSocket 实时推送解析进度     |
+| 费用估算    | 体积 × 填充率 × 耗材密度 × 单价，实时计价，支持缩放倍数（×scale³）       |
+| 模型缩略图   | 自动生成包围盒等轴测线框缩略图（SVG → Sharp PNG）                |
 | 3D 预览   | Three.js 渲染，Unity 风格相机控制（WASD 移动 / 中键旋转 / 滚轮缩放） |
-| 在线下单    | 余额校验 + 扣费事务，订单状态实时推送                            |
+| 在线下单    | 余额原子校验扣费事务，订单状态实时推送                             |
 | 订单跟踪    | WebSocket 实时推送状态变更，全程可见                         |
+| 草稿自动保存  | 上传页缩放倍数与解析结果自动存 localStorage，刷新/意外关闭可恢复         |
 
 ### 管理员端
 
 | 功能     | 说明                                                               |
 | ------ | ---------------------------------------------------------------- |
-| 仪表盘    | 订单 / 收入 / 用户 数据概览                                                |
-| CDK 管理 | 批量生成兑换码，指定面值与数量                                                  |
-| 订单审核   | 查看全部订单、模型预览、审核通过（自动下发打印）/ 驳回（自动退款）                               |
+| 仪表盘    | 订单 / 收入 / 用户 / CDK 数据概览（前端聚合，无需额外接口）                             |
+| CDK 管理 | 批量生成兑换码，指定面值与数量，列表按状态筛选                                          |
+| 订单审核   | 查看全部订单、模型预览下载、审核通过（自动下发打印）/ 驳回（自动退款）                             |
 | 状态流转   | 审核通过自动转 printing → 打印机回调自动转 completed → 手动确认取件 picked\_up        |
 | 流水对账   | 全部资金流水，支持 CSV 导出                                                 |
 | 用户管理   | 查看用户列表与余额                                                        |
+| 审计日志   | 管理员敏感操作（审核/驳回/导出）全量留痕，记录 IP / UA / 参数，支持分页查询                     |
 | 打印下发   | 审核通过后自动复制模型到打印目录 + 生成 task.json + HTTP 回调线下主机 + 打印机回调 API 自动回写状态 |
 
 ***
@@ -262,12 +265,12 @@ ChuangYingWeb/
 │   │       ├── user/            # 用户实体与服务
 │   │       ├── cdk/             # CDK 生成 / 兑换 / 余额 / 流水
 │   │       ├── transaction/     # 资金流水记录与 CSV 导出
-│   │       ├── model/           # 模型上传 / 体积解析 / 费用估算
-│   │       ├── order/           # 订单状态机 / 审核 / 日志 / WebSocket
+│   │       ├── model/           # 模型上传 / 流式体积解析 / 缩略图生成 / WS 解析进度
+│   │       ├── order/           # 订单状态机 / 审核 / 日志 / WebSocket（JWT 鉴权）
 │   │       └── print/           # 打印任务下发 / 硬件对接扩展接口
 │   ├── scripts/
 │   │   └── gen-admin-key.js     # 管理员密钥文件生成脚本
-│   └── data/                    # 运行时生成（db、uploads、print-tasks、avatars）
+│   └── data/                    # 运行时生成（db、uploads、print-tasks、thumbnails、avatars）
 │
 ├── web/                         # 前端 Vue3
 │   └── src/
@@ -297,17 +300,17 @@ ChuangYingWeb/
 
 ## 📦 模块职责
 
-| 模块                 | 职责                                                                           |
-| ------------------ | ---------------------------------------------------------------------------- |
-| **Auth & User**    | 用户注册 / 登录、bcrypt 密码哈希、JWT 签发与校验、邮箱验证码、个人信息、角色区分 (student / admin)            |
-| **CDK**            | 管理员批量生成唯一 CDK（面值 / 状态 / 兑换人 / 时间）；学生兑换 CDK 增加余额；防重复兑换                        |
-| **Transaction**    | 统一资金流水（recharge / deduct / refund），记录操作后余额，支持管理员 CSV 导出对账                    |
-| **Model**          | STL / OBJ / 3MF 上传（后缀 + 大小安全校验）、STL 三角网格体积解析、耗材费用估算                          |
-| **Order**          | 订单创建（余额校验 + 扣费）、状态机流转、订单日志、WebSocket 状态推送                                    |
-| **Review (Admin)** | 全部订单查看、模型预览、审核通过（触发打印下发）/ 驳回（退款）、状态流转操作                                      |
-| **Print**          | 审核通过后将模型复制到本地打印目录 + 生成 task.json；预留 HTTP 回调钩子与 `PrintDeviceInterface` 硬件对接接口 |
-| **WebSocket**      | `OrderGateway` 订单状态实时推送，前端连接 `/orders` 命名空间监听 `order:status_changed`         |
-| **Static**         | 首页、使用帮助、FAQ、取件须知静态页面                                                         |
+| 模块                 | 职责                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| **Auth & User**    | 用户注册 / 登录、bcrypt 密码哈希、JWT 签发与校验、邮箱验证码、个人信息、角色区分 (student / admin)                        |
+| **CDK**            | 管理员批量生成唯一 CDK（面值 / 状态 / 兑换人 / 时间）；学生兑换 CDK 增加余额；防重复兑换                                    |
+| **Transaction**    | 统一资金流水（recharge / deduct / refund），记录操作后余额，支持管理员 CSV 导出对账                                |
+| **Model**          | STL / OBJ / 3MF 上传（后缀 + 大小安全校验 + 文件名净化）、流式三角网格体积解析（WS 进度推送）、缩略图生成、耗材费用估算                 |
+| **Order**          | 订单创建（原子条件扣费）、状态机流转、订单日志、WebSocket 状态推送                                                   |
+| **Review (Admin)** | 全部订单查看（60s 缓存 + 变更失效）、模型预览下载、审核通过（触发打印下发）/ 驳回（退款）、状态流转操作、审计日志留痕                          |
+| **Print**          | 审核通过后将模型复制到本地打印目录 + 生成 task.json；预留 HTTP 回调钩子与 `PrintDeviceInterface` 硬件对接接口             |
+| **WebSocket**      | `OrderGateway` 订单状态实时推送（`/orders` 命名空间，JWT 连接鉴权）、`ModelGateway` 模型解析进度推送（`/models` 命名空间） |
+| **Common**         | 统一响应格式 / 业务错误码 / winston 结构化日志 / 健康检查 / Prometheus 指标 / 公开耗材配置                           |
 
 ***
 
@@ -390,24 +393,39 @@ ChuangYingWeb/
 
 ### email\_codes 邮箱验证码表
 
-| 字段          | 类型         | 说明                            |
-| ----------- | ---------- | ----------------------------- |
-| id          | INTEGER PK | <br />                        |
-| email       | TEXT       | 邮箱                            |
-| code        | TEXT       | 验证码                           |
-| purpose     | TEXT       | 用途（register / reset / verify） |
-| expires\_at | TEXT       | 过期时间                          |
-| attempts    | INTEGER    | 已尝试次数                         |
-| created\_at | TEXT       | <br />                        |
+| 字段          | 类型               | 说明                         |
+| ----------- | ---------------- | -------------------------- |
+| email       | TEXT PRIMARY KEY | 邮箱（主键，一邮箱一条有效记录，UPSERT 覆盖） |
+| code        | TEXT             | 6 位验证码                     |
+| expires\_at | TEXT             | 过期时间                       |
+| attempts    | INTEGER          | 已尝试次数（超限删除）                |
+| created\_at | TEXT             | 发送时间（用于频控统计）               |
+
+### admin\_audit\_logs 管理员审计日志表
+
+| 字段              | 类型         | 说明                                                          |
+| --------------- | ---------- | ----------------------------------------------------------- |
+| id              | INTEGER PK | <br />                                                      |
+| admin\_id       | INTEGER FK | 操作管理员                                                       |
+| admin\_name     | TEXT       | 管理员用户名                                                      |
+| action          | TEXT       | 动作（order\_approve / order\_reject / export\_transactions 等） |
+| target\_type    | TEXT       | 目标类型（order 等）                                               |
+| target\_id      | INTEGER    | 目标 ID                                                       |
+| request\_params | TEXT       | 请求参数快照                                                      |
+| ip              | TEXT       | 来源 IP                                                       |
+| user\_agent     | TEXT       | 浏览器 UA                                                      |
+| created\_at     | TEXT       | <br />                                                      |
 
 ***
 
 ## 💡 核心业务逻辑
 
-### 1. STL 体积解析（三角网格体积积分）
+### 1. STL 体积解析（流式三角网格体积积分）
+
+采用 **流式解析**（`model-parser.stream.ts`）：按 64KB 分块读取文件边读边算，大文件不占用整块内存；解析过程中通过 **WebSocket（ModelGateway）向用户端推送实时进度**（开始解析 → 已解析 N% → 解析完成），异步生成模型线框缩略图不阻塞响应。
 
 ```typescript
-// server/src/modules/model/model-parser.util.ts
+// server/src/modules/model/model-parser.stream.ts（有删节）
 function signedVolumeOfTriangle(p1, p2, p3) {
   return (1.0 / 6.0) * (
     -p3.x * p2.y * p1.z + p2.x * p3.y * p1.z + p3.x * p1.y * p2.z
@@ -415,20 +433,18 @@ function signedVolumeOfTriangle(p1, p2, p3) {
   );
 }
 
-// 二进制 STL：跳过 80 字节头 + 4 字节面数，每面 12 法线 + 36 顶点 + 2 属性
-function parseBinaryStl(buf) {
-  const numTriangles = buf.readUInt32LE(80);
-  let offset = 84, volume = 0;
-  for (let i = 0; i < numTriangles; i++) {
-    offset += 12; // 跳过法线
-    const p1 = readVec3(buf, offset); offset += 12;
-    const p2 = readVec3(buf, offset); offset += 12;
-    const p3 = readVec3(buf, offset); offset += 14; // 顶点 + 属性
-    volume += signedVolumeOfTriangle(p1, p2, p3);
+// 二进制 STL 流式解析：跳过 80 字节头 + 4 字节面数，每面 12 法线 + 36 顶点 + 2 属性
+// createReadStream 逐块读取，跨块的三角形缓存拼接后继续处理
+async function calculateVolumeStream(format, filePath, fileSize, onProgress) {
+  let volume = 0;
+  for await (const chunk of createReadStream(filePath, { highWaterMark: 64 * 1024 })) {
+    // ... 缓冲区拼接，逐三角形累加有符号体积，定期回调 onProgress(percent)
   }
   return Math.abs(volume) / 1000; // mm³ → cm³
 }
 ```
+
+**模型缩略图生成**（`thumbnail.service.ts`）：解析 STL/OBJ 顶点求包围盒 → 生成等轴测投影线框 SVG → Sharp 转换为 400×300 PNG，存入 `data/thumbnails/`，通过公开端点 `/api/models/:id/thumbnail` 访问。
 
 ### 2. 费用估算
 
@@ -605,6 +621,7 @@ pending_review ──管理员审核通过──▶ approved
 | ---- | ----------------------- | ----------------- | ----- |
 | POST | `/api/cdk/generate`     | 批量生成 CDK（面值 + 数量） | admin |
 | POST | `/api/cdk/redeem`       | 兑换 CDK 充值         | 登录    |
+| GET  | `/api/cdk`              | CDK 列表（可按状态筛选）    | admin |
 | GET  | `/api/cdk/balance`      | 查询余额              | 登录    |
 | GET  | `/api/cdk/transactions` | 我的资金流水            | 登录    |
 
@@ -619,25 +636,27 @@ pending_review ──管理员审核通过──▶ approved
 
 ### 订单 Order
 
-| 方法   | 路径                 | 说明                               | 权限 |
-| ---- | ------------------ | -------------------------------- | -- |
-| POST | `/api/orders`      | 创建订单（modelId）                    | 登录 |
-| GET  | `/api/orders/mine` | 我的订单列表                           | 登录 |
-| GET  | `/api/orders/:id`  | 订单详情                             | 登录 |
-| WS   | `/orders`          | 订单状态实时推送（`order:status_changed`） | 登录 |
+| 方法   | 路径                     | 说明                                 | 权限 |
+| ---- | ---------------------- | ---------------------------------- | -- |
+| POST | `/api/orders`          | 创建订单（modelId + 可选 scale）           | 登录 |
+| GET  | `/api/orders/mine`     | 我的订单列表                             | 登录 |
+| GET  | `/api/orders/:id`      | 订单详情                               | 登录 |
+| GET  | `/api/orders/:id/logs` | 订单状态流转日志                           | 登录 |
+| WS   | `/orders`              | 订单状态实时推送（`order:status_changed`）   | 登录 |
+| WS   | `/models`              | 模型解析进度推送（`model:parse_progress` 等） | 登录 |
 
 ### 管理员 Admin
 
 | 方法   | 路径                               | 说明                                      | 权限    |
 | ---- | -------------------------------- | --------------------------------------- | ----- |
-| GET  | `/api/admin/orders`              | 全部订单列表                                  | admin |
+| GET  | `/api/admin/orders`              | 全部订单列表（60s 缓存，变更即失效）                    | admin |
 | POST | `/api/admin/orders/:id/approve`  | 审核通过（触发打印下发）                            | admin |
 | POST | `/api/admin/orders/:id/reject`   | 审核驳回（自动退款）                              | admin |
 | POST | `/api/orders/:id/status`         | 状态流转（printing / completed / picked\_up） | admin |
 | GET  | `/api/admin/transactions`        | 全部资金流水                                  | admin |
 | GET  | `/api/admin/transactions/export` | 流水导出 CSV                                | admin |
 | GET  | `/api/admin/users`               | 用户列表                                    | admin |
-| GET  | `/api/admin/dashboard`           | 仪表盘统计数据                                 | admin |
+| GET  | `/api/admin/audit-logs`          | 管理员操作审计日志（分页）                           | admin |
 
 ### 打印 Print（线下主机对接）
 
@@ -646,13 +665,14 @@ pending_review ──管理员审核通过──▶ approved
 | POST | `/api/print/callback` | 打印完成回调（自动更新订单状态） | 回调密钥 |
 | POST | `/api/print/status`   | 查询订单打印状态         | 回调密钥 |
 
-### 系统观测
+### 系统观测与公共配置
 
-| 方法  | 路径          | 说明                       | 权限 |
-| --- | ----------- | ------------------------ | -- |
-| GET | `/health`   | 健康检查（数据库/磁盘/内存）          | 公开 |
-| GET | `/metrics`  | Prometheus 指标端点          | 公开 |
-| GET | `/api-docs` | Swagger API 文档（生产环境自动关闭） | 公开 |
+| 方法  | 路径                     | 说明                       | 权限 |
+| --- | ---------------------- | ------------------------ | -- |
+| GET | `/health`              | 健康检查（数据库/磁盘/内存）          | 公开 |
+| GET | `/metrics`             | Prometheus 指标端点          | 公开 |
+| GET | `/api/config/material` | 公开耗材配置（密度/单价/填充率，60s 缓存） | 公开 |
+| GET | `/api-docs`            | Swagger API 文档（生产环境自动关闭） | 公开 |
 
 ***
 
