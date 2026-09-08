@@ -22,11 +22,25 @@ request.interceptors.response.use(
     return res.data?.data
   },
   (error) => {
-    const msg = error.response?.data?.msg || error.message || '请求失败'
-    toast.error(Array.isArray(msg) ? msg.join('；') : msg)
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    const body = error.response?.data
+    const msg = body?.msg || error.message || '请求失败'
+
+    // 公开接口（登录/注册/验证码/重置密码）的 401 是"凭证错误"，只需提示，不跳转
+    const url: string = error.config?.url || ''
+    const isPublicAuth =
+      url.includes('/auth/login') ||
+      url.includes('/auth/register') ||
+      url.includes('/auth/send-code') ||
+      url.includes('/auth/reset-password')
+
+    if (status === 401 && !isPublicAuth) {
       localStorage.removeItem('token')
       window.location.href = '/login'
+    } else if (status === 429) {
+      toast.warning('操作过于频繁，请稍后再试')
+    } else {
+      toast.error(Array.isArray(msg) ? msg.join('；') : msg)
     }
     return Promise.reject(error)
   },

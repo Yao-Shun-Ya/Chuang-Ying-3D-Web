@@ -143,16 +143,22 @@ const resetting = ref(false)
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 async function submit() {
-  if (!form.username || !form.password) {
-    toast.warning('请输入用户名和密码')
+  if (!form.username.trim()) {
+    toast.warning('请输入邮箱 / 账号')
+    return
+  }
+  if (!form.password) {
+    toast.warning('请输入密码')
     return
   }
   loading.value = true
   try {
-    await userStore.login(form.username, form.password)
+    await userStore.login(form.username.trim(), form.password)
     toast.success('登录成功')
     const redirect = (route.query.redirect as string) || (userStore.isAdmin ? '/admin' : '/orders')
     router.push(redirect)
+  } catch {
+    // 错误提示已由拦截器 toast 展示（凭证错误/限流），这里不再重复
   } finally {
     loading.value = false
   }

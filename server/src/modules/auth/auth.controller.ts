@@ -44,7 +44,7 @@ export class AuthController {
   }
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 登录：5 次/分钟，防暴力破解
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 登录：10 次/分钟/IP，防暴力破解同时兼顾正常重试
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
