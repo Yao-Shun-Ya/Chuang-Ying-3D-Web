@@ -18,6 +18,18 @@ export default defineConfig({
         target: 'http://localhost:8731',
         changeOrigin: true,
       },
+      '/api-docs': {
+        target: 'http://localhost:8731',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:8731',
+        changeOrigin: true,
+      },
+      '/metrics': {
+        target: 'http://localhost:8731',
+        changeOrigin: true,
+      },
       '/socket.io': {
         target: 'http://localhost:8731',
         changeOrigin: true,
