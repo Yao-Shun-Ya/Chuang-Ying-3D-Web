@@ -13,7 +13,17 @@ server/data/uploads/*
 server/data/print-tasks/*
 server/data/thumbnails/*
 server/data/avatars/*
+server/data/logs/
+server/data/backups/
+server/data/devices.json
 server/admin.key
+
+# 设备真实配置（含访问码，不提交；模板见 server/config/devices.example.json）
+server/config/devices.json
+
+# 模拟器本地虚拟设备清单（运行时生成）
+simulator/data/
+simulator/config.json
 
 # Keep directory structure
 !server/data/uploads/.gitkeep
@@ -29,6 +39,9 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+
+# PostgreSQL 内嵌实例（ensure-pg.js 首次运行自动初始化，勿提交）
+server/.pgdata/
 
 # Editor
 .vscode/

@@ -25,12 +25,13 @@ async function bootstrap() {
   );
 
   // CORS：优先使用 CORS_ORIGINS 白名单（逗号分隔）；未配置时反射任意来源（仅限开发）
-  const corsOrigins = process.env.CORS_ORIGINS
-    ?.split(',')
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   if (isProduction && !corsOrigins?.length) {
-    console.warn('[3D-Print Server] 生产环境未配置 CORS_ORIGINS，将不允许跨域携带凭证（同源部署不受影响）');
+    console.warn(
+      '[3D-Print Server] 生产环境未配置 CORS_ORIGINS，将不允许跨域携带凭证（同源部署不受影响）',
+    );
   }
   app.enableCors({
     origin: corsOrigins?.length ? corsOrigins : true,

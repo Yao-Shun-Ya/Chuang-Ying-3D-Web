@@ -1,9 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 import { ApiResponse } from '../dto/api-response.dto';
 
@@ -13,10 +8,7 @@ import { ApiResponse } from '../dto/api-response.dto';
  */
 @Injectable()
 export class TransformInterceptor implements NestInterceptor {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<ApiResponse<unknown>> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<ApiResponse<unknown>> {
     const request = context.switchToHttp().getRequest();
     const traceId = request.headers['x-trace-id'] || request.traceId;
 

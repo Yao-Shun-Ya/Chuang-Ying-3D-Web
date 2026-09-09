@@ -1,0 +1,16 @@
+{
+  "name": "campus-device-simulator",
+  "version": "1.0.0",
+  "description": "创影3D 设备模拟器：模拟 Bambu MQTT / xTool WS-V2 / xTool REST / 探活目标，供平台全链路测试",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "cli": "node control/cli.js"
+  },
+  "dependencies": {
+    "aedes": "^0.51.3",
+    "selfsigned": "^2.4.1",
+    "ws": "^8.21.3"
+  }
+}

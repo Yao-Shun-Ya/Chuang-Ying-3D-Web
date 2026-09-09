@@ -23,7 +23,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const traceId = (request.headers['x-trace-id'] as string) || (request as { traceId?: string }).traceId;
+    const traceId =
+      (request.headers['x-trace-id'] as string) || (request as { traceId?: string }).traceId;
 
     let status: number;
     let code: number;

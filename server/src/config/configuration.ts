@@ -14,13 +14,25 @@ export default () => {
       expiresIn: env.JWT_EXPIRES_IN,
     },
     corsOrigins: env.CORS_ORIGINS
-      ? env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+      ? env.CORS_ORIGINS.split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
       : [],
     storage: {
       uploadDir: env.UPLOAD_DIR,
       printTaskDir: env.PRINT_TASK_DIR,
       avatarDir: env.AVATAR_DIR,
-      dbFile: env.DB_FILE,
+    },
+    database: {
+      type: env.DB_TYPE,
+      host: env.PG_HOST,
+      port: env.PG_PORT,
+      user: env.PG_USER,
+      password: env.PG_PASSWORD,
+      database: env.PG_DATABASE,
+      ssl: env.PG_SSL,
+      poolMax: env.PG_POOL_MAX,
+      timezone: env.PG_TZ,
     },
     material: {
       density: env.MATERIAL_DENSITY,
@@ -33,6 +45,15 @@ export default () => {
     },
     printCallbackUrl: env.PRINT_CALLBACK_URL,
     printCallbackSecret: env.PRINT_CALLBACK_SECRET,
+    devices: {
+      configPath: env.DEVICES_CONFIG_PATH,
+    },
+    laser: {
+      pricePerMinute: env.LASER_PRICE_PER_MINUTE,
+      expireMinutes: env.LASER_EXPIRE_MINUTES,
+      autoEndGraceMinutes: env.LASER_AUTO_END_GRACE_MINUTES,
+      hardCapGraceMinutes: env.LASER_HARD_CAP_GRACE_MINUTES,
+    },
     defaultAdmin: {
       username: env.ADMIN_USER,
       password: env.ADMIN_PASS,
@@ -57,11 +78,6 @@ export default () => {
     throttle: {
       ttl: env.THROTTLE_TTL,
       limit: env.THROTTLE_LIMIT,
-    },
-    redis: {
-      host: env.REDIS_HOST,
-      port: env.REDIS_PORT,
-      password: env.REDIS_PASSWORD,
     },
     logLevel: env.LOG_LEVEL,
   };

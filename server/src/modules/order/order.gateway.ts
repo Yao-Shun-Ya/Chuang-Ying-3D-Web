@@ -67,7 +67,9 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`order:${orderId}`).emit('order:status_changed', { orderId, ...payload });
     // 同时推送给订单所属用户
     if (payload.userId) {
-      this.server.to(`user:${payload.userId}`).emit('order:status_changed', { orderId, ...payload });
+      this.server
+        .to(`user:${payload.userId}`)
+        .emit('order:status_changed', { orderId, ...payload });
     }
   }
 }

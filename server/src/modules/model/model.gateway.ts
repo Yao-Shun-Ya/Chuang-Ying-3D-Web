@@ -37,12 +37,7 @@ export class ModelGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param progress 进度 0~1
    * @param stage 阶段描述
    */
-  emitParseProgress(
-    userId: number,
-    modelId: number,
-    progress: number,
-    stage: string,
-  ) {
+  emitParseProgress(userId: number, modelId: number, progress: number, stage: string) {
     this.server.to(`user:${userId}`).emit('model:parse_progress', {
       modelId,
       progress: Math.round(progress * 100),

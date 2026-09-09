@@ -79,6 +79,45 @@
             <p class="text-xs text-muted-foreground">费用</p>
             <p class="font-medium mt-0.5">¥{{ current.cost }}</p>
           </div>
+          <!-- 打印配置 -->
+          <div v-if="hasPrintParams(current)" class="rounded-xl border border-border bg-secondary/30 p-3 col-span-2">
+            <p class="text-xs text-muted-foreground mb-1.5">打印配置</p>
+            <div class="flex flex-wrap gap-1.5">
+              <Badge variant="secondary">填充 {{ Math.round((current.print_params.infillRate ?? 0.2) * 100) }}%</Badge>
+              <Badge variant="secondary">支撑 {{ supportLabel(current.print_params.supports ?? 0) }}</Badge>
+              <Badge v-if="current.print_params.color" variant="secondary">
+                <span class="w-2 h-2 rounded-full mr-1 border border-black/20" :style="{ backgroundColor: colorHex(current.print_params.color) }"></span>
+                {{ current.print_params.color }}
+              </Badge>
+            </div>
+          </div>
+          <div v-if="printerOf(current)" class="rounded-xl border border-border bg-secondary/30 p-3 col-span-2">
+            <p class="text-xs text-muted-foreground">打印设备</p>
+            <p class="font-medium mt-0.5 flex items-center gap-2">
+              <Printer class="w-4 h-4 text-sky-600" /> {{ printerOf(current)!.name }}
+              <Badge :variant="printerOf(current)!.online ? 'success' : 'secondary'">
+                {{ printerOf(current)!.online ? '在线' : '离线' }}
+              </Badge>
+            </p>
+            <!-- 实时进度 -->
+            <template v-if="printerOf(current)!.state === 'working' && printerOf(current)!.progress != null">
+              <div class="mt-3">
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="text-muted-foreground">打印进度</span>
+                  <span class="font-semibold text-primary">
+                    {{ Math.round(printerOf(current)!.progress) }}%
+                    <template v-if="printerOf(current)!.remainingMinutes != null">
+                      （剩余 ~{{ printerOf(current)!.remainingMinutes }} 分钟）
+                    </template>
+                  </span>
+                </div>
+                <div class="h-2 rounded-full bg-secondary overflow-hidden">
+                  <div class="h-full gradient-bg rounded-full transition-all duration-700"
+                    :style="{ width: Math.min(100, printerOf(current)!.progress) + '%' }"></div>
+                </div>
+              </div>
+            </template>
+          </div>
         </div>
 
         <div v-if="current?.reject_reason" class="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -106,9 +145,9 @@
 import AmbientBackground from '@/components/AmbientBackground.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { io, Socket } from 'socket.io-client'
-import { getMyOrders, getOrderLogs } from '@/api'
+import { getMyOrders, getOrderLogs, getPublicDevices } from '@/api'
 import { toast } from '@/composables/useToast'
-import { RefreshCw, Loader2, Package, Eye, X } from 'lucide-vue-next'
+import { RefreshCw, Loader2, Package, Eye, X, Printer } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 import Badge from '@/components/ui/Badge.vue'
 import Dialog from '@/components/ui/Dialog.vue'
@@ -125,18 +164,53 @@ const loading = ref(false)
 const detailVisible = ref(false)
 const current = ref<any>(null)
 const logs = ref<any[]>([])
-let socket: Socket | null = null
+// 设备实时状态（打印进度展示）
+const deviceMap = ref<Record<string, any>>({})
+let deviceSocket: Socket | null = null
+let orderSocket: Socket | null = null
 
 onMounted(async () => {
   await loadOrders()
-  socket = io('/orders', { auth: { token: localStorage.getItem('token') } })
-  socket.on('order:status_changed', (data) => {
+  // 拉取设备摘要 + WS 订阅实时进度
+  try {
+    for (const d of await getPublicDevices()) deviceMap.value[d.id] = d
+  } catch { /* 设备接口不可用时不影响订单页 */ }
+  deviceSocket = io('/devices', { auth: { token: localStorage.getItem('token') } })
+  deviceSocket.on('device:public_status', (d: any) => {
+    deviceMap.value[d.id] = { ...deviceMap.value[d.id], ...d }
+  })
+  orderSocket = io('/orders', { auth: { token: localStorage.getItem('token') } })
+  orderSocket.on('order:status_changed', (data) => {
     toast.info(`订单 ${data.orderNo || data.orderId} 状态更新为 ${statusLabel(data.status)}`)
     loadOrders()
   })
 })
 
-onUnmounted(() => socket?.disconnect())
+onUnmounted(() => {
+  deviceSocket?.disconnect()
+  orderSocket?.disconnect()
+})
+
+/** 订单绑定的打印机实时状态 */
+function printerOf(order: any) {
+  return order.printer_device_id ? deviceMap.value[order.printer_device_id] : null
+}
+
+/** 是否携带打印配置 */
+function hasPrintParams(order: any) {
+  const p = order.print_params
+  return p && (p.infillRate != null || p.supports != null || p.color)
+}
+
+const SUPPORT_LABEL: Record<number, string> = { 0: '无', 25: '轻度', 50: '标准', 100: '密集' }
+function supportLabel(v: number) { return SUPPORT_LABEL[v] || String(v) }
+
+const COLOR_HEX: Record<string, string> = {
+  '白色': '#f5f5f4', '黑色': '#1c1917', '灰色': '#9ca3af', '红色': '#ef4444',
+  '蓝色': '#3b82f6', '绿色': '#22c55e', '黄色': '#eab308', '橙色': '#f97316',
+  '紫色': '#a855f7', '透明': '#dbeafe',
+}
+function colorHex(name: string) { return COLOR_HEX[name] || '#9ca3af' }
 
 async function loadOrders() {
   loading.value = true

@@ -25,9 +25,7 @@ export class AppLoggerService implements NestLoggerService {
               winston.format.printf(
                 ({ timestamp, level, message, ...meta }) =>
                   `${timestamp} [${level}] ${message}${
-                    Object.keys(meta).length
-                      ? ' ' + JSON.stringify(meta)
-                      : ''
+                    Object.keys(meta).length ? ' ' + JSON.stringify(meta) : ''
                   }`,
               ),
             ),

@@ -74,43 +74,37 @@ export class PrintCallbackController {
    * Body: { orderNo, result: 'success'|'failed', message?, printerName?, duration? }
    */
   @Post('callback')
-  callback(
-    @Body() dto: PrintCallbackDto,
-    @Headers('x-callback-secret') secret: string,
-  ) {
+  async callback(@Body() dto: PrintCallbackDto, @Headers('x-callback-secret') secret: string) {
     this.assertCallbackSecret(secret);
 
-    const order = this.orderService.findByOrderNo(dto.orderNo);
+    const order = await this.orderService.findByOrderNo(dto.orderNo);
     if (!order) {
       throw new BadRequestException(`订单不存在: ${dto.orderNo}`);
     }
 
     if (order.status !== 'printing') {
-      throw new BadRequestException(
-        `订单状态非打印中，当前状态: ${order.status}`,
-      );
+      throw new BadRequestException(`订单状态非打印中，当前状态: ${order.status}`);
     }
 
     // 打印成功 → 已完成；打印失败 → 驳回并退款
     if (dto.result === 'failed') {
-      this.logger.warn(
-        `订单 ${dto.orderNo} 打印失败: ${dto.message || '未知原因'}，将驳回并退款`,
-      );
+      this.logger.warn(`订单 ${dto.orderNo} 打印失败: ${dto.message || '未知原因'}，将驳回并退款`);
       const reason = `打印失败${dto.message ? `：${dto.message}` : ''}`;
-      const updated = this.orderService.reject(order.id, 0, reason);
+      const updated = await this.orderService.reject(order.id, 0, reason);
       this.logger.log(`订单 ${dto.orderNo} 已驳回退款`);
       return { success: true, status: updated.status, message: reason };
     }
 
-    const remark = [
-      dto.printerName ? `打印机: ${dto.printerName}` : null,
-      dto.duration ? `耗时: ${dto.duration}` : null,
-      dto.message || null,
-    ]
-      .filter(Boolean)
-      .join(' | ') || '打印完成';
+    const remark =
+      [
+        dto.printerName ? `打印机: ${dto.printerName}` : null,
+        dto.duration ? `耗时: ${dto.duration}` : null,
+        dto.message || null,
+      ]
+        .filter(Boolean)
+        .join(' | ') || '打印完成';
 
-    const updated = this.orderService.updateStatus(
+    const updated = await this.orderService.updateStatus(
       order.id,
       'completed',
       0, // 系统操作
@@ -126,12 +120,9 @@ export class PrintCallbackController {
    * 线下主机可查询某订单当前打印状态（需回调密钥，防止订单状态枚举）
    */
   @Post('status')
-  status(
-    @Body('orderNo') orderNo: string,
-    @Headers('x-callback-secret') secret: string,
-  ) {
+  async status(@Body('orderNo') orderNo: string, @Headers('x-callback-secret') secret: string) {
     this.assertCallbackSecret(secret);
-    const order = this.orderService.findByOrderNo(orderNo);
+    const order = await this.orderService.findByOrderNo(orderNo);
     if (!order) throw new BadRequestException('订单不存在');
     return { orderNo, status: order.status };
   }

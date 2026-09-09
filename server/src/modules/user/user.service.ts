@@ -20,82 +20,85 @@ export interface User {
 export class UserService {
   constructor(private db: DatabaseService) {}
 
-  findByUsername(username: string): User | undefined {
+  async findByUsername(username: string): Promise<User | undefined> {
     return this.db.get<User>('SELECT * FROM users WHERE username = ?', [username]);
   }
 
-  findByEmail(email: string): User | undefined {
+  async findByEmail(email: string): Promise<User | undefined> {
     return this.db.get<User>('SELECT * FROM users WHERE email = ?', [email]);
   }
 
-  findById(id: number): User | undefined {
+  async findById(id: number): Promise<User | undefined> {
     return this.db.get<User>('SELECT * FROM users WHERE id = ?', [id]);
   }
 
-  create(data: {
+  async create(data: {
     username: string;
     email: string;
     passwordHash: string;
     role?: 'student' | 'admin';
     realName?: string;
     studentNo?: string;
-  }): User {
-    const stmt = this.db.prepare(
+  }): Promise<User> {
+    const result = await this.db.run(
       `INSERT INTO users (username, email, password_hash, role, real_name, student_no)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      [
+        data.username,
+        data.email,
+        data.passwordHash,
+        data.role || 'student',
+        data.realName || null,
+        data.studentNo || null,
+      ],
     );
-    const result = stmt.run(
-      data.username,
-      data.email,
-      data.passwordHash,
-      data.role || 'student',
-      data.realName || null,
-      data.studentNo || null,
-    );
-    return this.findById(Number(result.lastInsertRowid))!;
+    return (await this.findById(Number(result.lastInsertRowid)))!;
   }
 
-  updateProfile(
+  async updateProfile(
     id: number,
     data: { realName?: string; studentNo?: string; displayName?: string; avatar?: string },
   ) {
-    this.db.prepare(
+    await this.db.run(
       `UPDATE users SET real_name = COALESCE(?, real_name),
                         student_no = COALESCE(?, student_no),
                         display_name = COALESCE(?, display_name),
                         avatar = COALESCE(?, avatar),
                         updated_at = datetime('now','localtime')
        WHERE id = ?`,
-    ).run(
-      data.realName ?? null,
-      data.studentNo ?? null,
-      data.displayName ?? null,
-      data.avatar ?? null,
-      id,
+      [
+        data.realName ?? null,
+        data.studentNo ?? null,
+        data.displayName ?? null,
+        data.avatar ?? null,
+        id,
+      ],
     );
     return this.findById(id);
   }
 
-  updatePassword(id: number, passwordHash: string) {
-    this.db
-      .prepare('UPDATE users SET password_hash = ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?')
-      .run(passwordHash, id);
+  async updatePassword(id: number, passwordHash: string) {
+    await this.db.run(
+      "UPDATE users SET password_hash = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+      [passwordHash, id],
+    );
   }
 
-  updateEmail(id: number, email: string) {
-    this.db
-      .prepare('UPDATE users SET email = ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?')
-      .run(email, id);
+  async updateEmail(id: number, email: string) {
+    await this.db.run(
+      "UPDATE users SET email = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+      [email, id],
+    );
   }
 
   /** 更新余额（原子操作，由调用方在事务外/内使用） */
-  updateBalance(id: number, newBalance: number) {
-    this.db.prepare('UPDATE users SET balance = ? WHERE id = ?').run(newBalance, id);
+  async updateBalance(id: number, newBalance: number) {
+    await this.db.run('UPDATE users SET balance = ? WHERE id = ?', [newBalance, id]);
   }
 
-  listAll() {
+  async listAll() {
     return this.db.all<User>(
-      'SELECT id, username, email, role, real_name, student_no, display_name, avatar, balance, created_at FROM users WHERE role != \'admin\' ORDER BY id DESC',
+      "SELECT id, username, email, role, real_name, student_no, display_name, avatar, balance, created_at FROM users WHERE role != 'admin' ORDER BY id DESC",
     );
   }
 }

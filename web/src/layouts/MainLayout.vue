@@ -244,7 +244,7 @@ const userStore = useUserStore()
 const scrolled = ref(false)
 const mobileOpen = ref(false)
 
-// 导航顺序：首页 → 使用帮助 → 上传模型(学生) → 常见问题 → 取件须知 → 我的订单 → 余额充值
+// 导航顺序（学生登录后）：首页 → 使用帮助 → 常见问题 → 取件须知 → 上传模型 → 激光工坊 → 我的订单 → 设备状态 → 余额充值
 const publicNav = [
   { path: '/', label: '首页' },
   { path: '/help', label: '使用帮助' },
@@ -253,16 +253,16 @@ const publicNav = [
 ]
 const studentNav = [
   { path: '/upload', label: '上传模型' },
+  { path: '/laser', label: '激光工坊' },
   { path: '/orders', label: '我的订单' },
+  { path: '/devices', label: '设备状态' },
   { path: '/balance', label: '余额充值' },
 ]
 
 const navItems = computed(() => {
   const items = [...publicNav]
   if (userStore.isLoggedIn && !userStore.isAdmin) {
-    // 上传模型紧跟在使用帮助之后
-    items.splice(2, 0, studentNav[0])
-    items.push(...studentNav.slice(1))
+    items.push(...studentNav)
   }
   return items
 })

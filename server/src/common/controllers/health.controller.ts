@@ -28,14 +28,14 @@ export class HealthController {
 
   @Get()
   @ApiOperation({ summary: '健康检查' })
-  check(): HealthInfo {
+  async check(): Promise<HealthInfo> {
     const now = Date.now();
     const uptime = process.uptime();
 
     // 数据库连接检查
     let dbConnected = false;
     try {
-      this.db.prepare('SELECT 1').get();
+      await this.db.get<{ ok: number }>('SELECT 1 as ok');
       dbConnected = true;
     } catch {
       dbConnected = false;

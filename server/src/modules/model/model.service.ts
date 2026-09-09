@@ -67,19 +67,19 @@ export class ModelService {
     const estimatedCost = Math.max(0.01, +(weightG * material.pricePerGram).toFixed(2));
 
     // 3. 插入数据库
-    const stmt = this.db.prepare(
+    const result = await this.db.run(
       `INSERT INTO models (user_id, filename, original_name, file_path, file_size, format, volume, estimated_cost)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    const result = stmt.run(
-      data.userId,
-      data.filename,
-      data.originalName,
-      data.filePath,
-      data.fileSize,
-      data.format,
-      +volume.toFixed(4),
-      estimatedCost,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      [
+        data.userId,
+        data.filename,
+        data.originalName,
+        data.filePath,
+        data.fileSize,
+        data.format,
+        +volume.toFixed(4),
+        estimatedCost,
+      ],
     );
     const modelId = Number(result.lastInsertRowid);
 
@@ -87,25 +87,30 @@ export class ModelService {
     this.modelGateway.emitParseComplete(data.userId, modelId, +volume.toFixed(4), estimatedCost);
 
     // 5. 异步生成缩略图（不阻塞响应）
-    this.thumbnailService.generate(modelId, data.format, data.filePath).then((thumbPath) => {
-      if (thumbPath) {
-        this.db.prepare('UPDATE models SET thumbnail_path = ? WHERE id = ?').run(thumbPath, modelId);
-      }
-    }).catch((err) => {
-      this.logger.warn(`缩略图生成失败: model=${modelId} err=${err.message}`);
-    });
+    this.thumbnailService
+      .generate(modelId, data.format, data.filePath)
+      .then(async (thumbPath) => {
+        if (thumbPath) {
+          await this.db.run('UPDATE models SET thumbnail_path = ? WHERE id = ?', [
+            thumbPath,
+            modelId,
+          ]);
+        }
+      })
+      .catch((err) => {
+        this.logger.warn(`缩略图生成失败: model=${modelId} err=${err.message}`);
+      });
 
-    return this.findById(modelId)!;
+    return (await this.findById(modelId))!;
   }
 
-  findById(id: number): ModelRecord | undefined {
+  async findById(id: number): Promise<ModelRecord | undefined> {
     return this.db.get<ModelRecord>('SELECT * FROM models WHERE id = ?', [id]);
   }
 
   listByUser(userId: number) {
-    return this.db.all<ModelRecord>(
-      'SELECT * FROM models WHERE user_id = ? ORDER BY id DESC',
-      [userId],
-    );
+    return this.db.all<ModelRecord>('SELECT * FROM models WHERE user_id = ? ORDER BY id DESC', [
+      userId,
+    ]);
   }
 }

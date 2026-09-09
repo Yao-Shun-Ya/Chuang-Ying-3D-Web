@@ -1,4 +1,11 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
@@ -68,22 +75,24 @@ export class AuthService {
     const cfg = this.configService.get('emailCode');
 
     // 1. 频率限制：统计该邮箱最近 1 小时的发送次数
-    const sendCount = this.db.get<{ cnt: number }>(
+    const sendCount = await this.db.get<{ cnt: number }>(
       `SELECT COUNT(*) as cnt FROM email_codes
        WHERE email = ? AND created_at >= datetime('now','localtime','-1 hour')`,
       [email],
     );
     if (sendCount!.cnt >= cfg.maxSendPerHour) {
-      throw new BadRequestException(`该邮箱发送过于频繁，请稍后再试（${cfg.maxSendPerHour} 次/小时）`);
+      throw new BadRequestException(
+        `该邮箱发送过于频繁，请稍后再试（${cfg.maxSendPerHour} 次/小时）`,
+      );
     }
 
     // 2. 重发冷却：若上次发送距今不足冷却时间则拒绝（直接比较本地时间字符串，避免时区问题）
-    const last = this.db.get<{ created_at: string }>(
+    const last = await this.db.get<{ created_at: string }>(
       `SELECT created_at FROM email_codes WHERE email = ?`,
       [email],
     );
     if (last) {
-      const cd = this.db.get<{ within: number }>(
+      const cd = await this.db.get<{ within: number }>(
         `SELECT CASE WHEN ? >= datetime('now','localtime','-${cfg.resendCooldownSec} seconds') THEN 1 ELSE 0 END as within`,
         [last.created_at],
       );
@@ -96,7 +105,7 @@ export class AuthService {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
     // 4. UPSERT 入库（expires_at 用 SQLite datetime 本地时间，统一时区）
-    this.db.prepare(
+    await this.db.run(
       `INSERT INTO email_codes (email, code, expires_at, attempts, created_at)
        VALUES (?, ?, datetime('now','localtime','+${cfg.ttlMinutes} minutes'), 0, datetime('now','localtime'))
        ON CONFLICT(email) DO UPDATE SET
@@ -104,7 +113,8 @@ export class AuthService {
          expires_at = excluded.expires_at,
          attempts = 0,
          created_at = datetime('now','localtime')`,
-    ).run(email, code);
+      [email, code],
+    );
 
     // 5. 发送邮件（或控制台输出）
     await this.sendEmail(email, code);
@@ -146,40 +156,37 @@ export class AuthService {
    * - 校验通过则删除记录（一次性使用）
    * - 校验失败则 attempts+1，超过上限则删除
    */
-  verifyCode(email: string, code: string): boolean {
-    const rec = this.db.get<EmailCodeRecord>(
-      'SELECT * FROM email_codes WHERE email = ?',
-      [email],
-    );
+  async verifyCode(email: string, code: string): Promise<boolean> {
+    const rec = await this.db.get<EmailCodeRecord>('SELECT * FROM email_codes WHERE email = ?', [
+      email,
+    ]);
     if (!rec) return false;
 
     // 过期检查（用 SQLite 时间函数，统一本地时区）
-    const expired = this.db.get<{ is_expired: number }>(
+    const expired = await this.db.get<{ is_expired: number }>(
       `SELECT CASE WHEN ? < datetime('now','localtime') THEN 1 ELSE 0 END as is_expired`,
       [rec.expires_at],
     );
     if (expired!.is_expired) {
-      this.db.prepare('DELETE FROM email_codes WHERE email = ?').run(email);
+      await this.db.run('DELETE FROM email_codes WHERE email = ?', [email]);
       return false;
     }
 
     // 尝试次数上限检查
     const cfg = this.configService.get('emailCode');
     if (rec.attempts >= cfg.maxAttempts) {
-      this.db.prepare('DELETE FROM email_codes WHERE email = ?').run(email);
+      await this.db.run('DELETE FROM email_codes WHERE email = ?', [email]);
       return false;
     }
 
     if (rec.code === code) {
       // 校验成功：一次性使用，删除记录
-      this.db.prepare('DELETE FROM email_codes WHERE email = ?').run(email);
+      await this.db.run('DELETE FROM email_codes WHERE email = ?', [email]);
       return true;
     }
 
     // 校验失败：attempts + 1
-    this.db.prepare(
-      'UPDATE email_codes SET attempts = attempts + 1 WHERE email = ?',
-    ).run(email);
+    await this.db.run('UPDATE email_codes SET attempts = attempts + 1 WHERE email = ?', [email]);
     return false;
   }
 
@@ -187,15 +194,15 @@ export class AuthService {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dto.email)) {
       throw new BadRequestException('邮箱格式不正确');
     }
-    if (!this.verifyCode(dto.email, dto.code)) {
+    if (!(await this.verifyCode(dto.email, dto.code))) {
       throw new BadRequestException('验证码错误或已过期');
     }
-    if (this.userService.findByEmail(dto.email)) {
+    if (await this.userService.findByEmail(dto.email)) {
       throw new ConflictException('该邮箱已被注册');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = this.userService.create({
+    const user = await this.userService.create({
       username: dto.email, // 用户名默认即邮箱
       email: dto.email,
       passwordHash,
@@ -207,7 +214,8 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     // 兼容邮箱或用户名登录
-    const user = this.userService.findByUsername(dto.username) || this.userService.findByEmail(dto.username);
+    const byName = await this.userService.findByUsername(dto.username);
+    const user = byName || (await this.userService.findByEmail(dto.username));
     if (!user) throw new UnauthorizedException('用户名或密码错误');
 
     const valid = await bcrypt.compare(dto.password, user.password_hash);
@@ -220,14 +228,14 @@ export class AuthService {
    * 已登录用户修改密码：通过邮箱验证码验证，无需原密码
    */
   async changePassword(userId: number, code: string, newPassword: string) {
-    const user = this.userService.findById(userId);
+    const user = await this.userService.findById(userId);
     if (!user) throw new UnauthorizedException('用户不存在');
     if (!user.email) throw new BadRequestException('该账号未绑定邮箱，无法修改密码');
-    if (!this.verifyCode(user.email, code)) {
+    if (!(await this.verifyCode(user.email, code))) {
       throw new BadRequestException('验证码错误或已过期');
     }
     const hash = await bcrypt.hash(newPassword, 10);
-    this.userService.updatePassword(userId, hash);
+    await this.userService.updatePassword(userId, hash);
     return { success: true };
   }
 
@@ -238,13 +246,13 @@ export class AuthService {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new BadRequestException('邮箱格式不正确');
     }
-    if (!this.verifyCode(email, code)) {
+    if (!(await this.verifyCode(email, code))) {
       throw new BadRequestException('验证码错误或已过期');
     }
-    const user = this.userService.findByEmail(email);
+    const user = await this.userService.findByEmail(email);
     if (!user) throw new NotFoundException('该邮箱未注册');
     const hash = await bcrypt.hash(newPassword, 10);
-    this.userService.updatePassword(user.id, hash);
+    await this.userService.updatePassword(user.id, hash);
     return { success: true };
   }
 
@@ -267,10 +275,7 @@ export class AuthService {
 
       // HMAC 签名校验
       const secret = this.configService.get('adminKeySecret');
-      const expected = crypto
-        .createHmac('sha256', secret)
-        .update(String(t))
-        .digest('base64');
+      const expected = crypto.createHmac('sha256', secret).update(String(t)).digest('base64');
       return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(data.s));
     } catch {
       return false;
@@ -281,14 +286,14 @@ export class AuthService {
    * 管理员通过 Key 文件修改密码（无需邮箱验证码，无需原密码）
    */
   async changeAdminPasswordByKey(userId: number, keyContent: string, newPassword: string) {
-    const user = this.userService.findById(userId);
+    const user = await this.userService.findById(userId);
     if (!user) throw new UnauthorizedException('用户不存在');
     if (user.role !== 'admin') throw new UnauthorizedException('仅管理员可使用此方式');
     if (!this.verifyAdminKey(keyContent)) {
       throw new BadRequestException('Key 文件无效或已过期');
     }
     const hash = await bcrypt.hash(newPassword, 10);
-    this.userService.updatePassword(userId, hash);
+    await this.userService.updatePassword(userId, hash);
     return { success: true };
   }
 

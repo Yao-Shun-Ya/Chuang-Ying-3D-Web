@@ -1,0 +1,71 @@
+{
+  "brands": [
+    {
+      "type": "bambu",
+      "brand": "Bambu Lab",
+      "category": "fdm",
+      "protocol": "MQTT/TLS :8883 (serial + accessCode)",
+      "paramsTemplate": { "mqttPort": 8883, "accessCode": "", "serial": "01S00C000000001" },
+      "supports": ["pause", "resume", "stop", "led_on", "led_off", "pushall"],
+      "models": [
+        { "model": "X2D", "resumeSemantics": "resume" },
+        { "model": "H2C", "resumeSemantics": "resume" },
+        { "model": "P1S", "resumeSemantics": "resume" },
+        { "model": "P1P", "resumeSemantics": "resume" },
+        { "model": "A1", "resumeSemantics": "resume" },
+        { "model": "A1 mini", "resumeSemantics": "resume" },
+        { "model": "X1 Carbon", "resumeSemantics": "resume" },
+        { "model": "P1 Handle", "resumeSemantics": "resume" }
+      ]
+    },
+    {
+      "type": "creality",
+      "brand": "Creality",
+      "category": "fdm",
+      "protocol": "WebSocket JSON-RPC :9999",
+      "paramsTemplate": { "wsPort": 9999 },
+      "supports": ["pause", "resume", "stop", "led_on", "led_off", "pushall"],
+      "models": [
+        { "model": "K1", "resumeSemantics": "resume_print" },
+        { "model": "K1C", "resumeSemantics": "resume_print" },
+        { "model": "K1 Max", "resumeSemantics": "resume_print" },
+        { "model": "K1 SE", "resumeSemantics": "resume_print" },
+        { "model": "Ender-3 V3", "resumeSemantics": "resume_print" },
+        { "model": "Ender-3 V3 KE", "resumeSemantics": "resume_print" },
+        { "model": "Ender-3 V3 Plus", "resumeSemantics": "resume_print" },
+        { "model": "Hi", "resumeSemantics": "resume_print" },
+        { "model": "Hi Combo", "resumeSemantics": "resume_print" },
+        { "model": "K2 Plus", "resumeSemantics": "resume_print" }
+      ]
+    },
+    {
+      "type": "xtool",
+      "brand": "xTool",
+      "category": "laser",
+      "protocol": "WS-V2 :28900 + REST V1 :8080",
+      "paramsTemplate": { "wsPort": 28900, "restPort": 8080 },
+      "supports": ["pause", "resume", "stop"],
+      "models": [
+        { "model": "F2 Ultra", "resumeSemantics": "resume" },
+        { "model": "M2", "resumeSemantics": "resume" },
+        { "model": "M2 Ultra", "resumeSemantics": "resume" },
+        { "model": "S1", "resumeSemantics": "resume" },
+        { "model": "P2", "resumeSemantics": "resume" },
+        { "model": "P2S", "resumeSemantics": "resume" },
+        { "model": "F1", "resumeSemantics": "resume" },
+        { "model": "D1 Pro", "resumeSemantics": "resume" }
+      ]
+    },
+    {
+      "type": "eufymake",
+      "brand": "EufyMake",
+      "category": "uv",
+      "protocol": "TCP 探活 :9900 (无公开API，手动状态)",
+      "paramsTemplate": { "probePort": 9900 },
+      "supports": [],
+      "models": [
+        { "model": "E1", "resumeSemantics": "manual" }
+      ]
+    }
+  ]
+}

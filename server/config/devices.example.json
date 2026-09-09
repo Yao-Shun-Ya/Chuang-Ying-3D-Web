@@ -1,0 +1,53 @@
+{
+  "laser": { "pricePerMinute": 0.5 },
+  "devices": [
+    {
+      "id": "bambu-01",
+      "name": "Bambu Lab 拓竹 X2D · 虚拟01",
+      "type": "bambu",
+      "category": "fdm",
+      "model": "X2D",
+      "host": "127.0.0.1",
+      "serial": "01S00C792649968",
+      "accessCode": "34656684"
+    },
+    {
+      "id": "bambu-02",
+      "name": "Bambu Lab 拓竹 H2C · 虚拟02",
+      "type": "bambu",
+      "category": "fdm",
+      "model": "H2C",
+      "host": "127.0.0.1",
+      "serial": "01S00C883595171",
+      "accessCode": "37072574"
+    },
+    {
+      "id": "creality-01",
+      "name": "Creality 创想3D K1 · 虚拟01",
+      "type": "creality",
+      "category": "fdm",
+      "model": "K1",
+      "host": "127.0.0.1",
+      "wsPort": 9999
+    },
+    {
+      "id": "xtool-01",
+      "name": "xTool F2 Ultra · 虚拟01",
+      "type": "xtool",
+      "category": "laser",
+      "model": "F2 Ultra",
+      "host": "127.0.0.1",
+      "wsPort": 28900,
+      "restPort": 8080
+    },
+    {
+      "id": "eufymake-01",
+      "name": "EufyMake E1 · 虚拟01",
+      "type": "eufymake",
+      "category": "uv",
+      "model": "E1",
+      "host": "127.0.0.1",
+      "probePort": 9900
+    }
+  ]
+}

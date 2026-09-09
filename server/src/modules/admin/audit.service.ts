@@ -20,34 +20,35 @@ export class AuditService {
     private readonly logger: AppLoggerService,
   ) {}
 
-  log(entry: AuditLogEntry): void {
+  async log(entry: AuditLogEntry): Promise<void> {
     try {
-      this.db.prepare(
+      await this.db.run(
         `INSERT INTO admin_audit_logs
          (admin_id, admin_name, action, target_type, target_id, request_params, ip, user_agent)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        entry.adminId,
-        entry.adminName,
-        entry.action,
-        entry.targetType || null,
-        entry.targetId || null,
-        entry.requestParams ? JSON.stringify(entry.requestParams) : null,
-        entry.ip || null,
-        entry.userAgent || null,
+        [
+          entry.adminId,
+          entry.adminName,
+          entry.action,
+          entry.targetType || null,
+          entry.targetId || null,
+          entry.requestParams ? JSON.stringify(entry.requestParams) : null,
+          entry.ip || null,
+          entry.userAgent || null,
+        ],
       );
     } catch (err) {
       this.logger.error('审计日志写入失败', JSON.stringify(entry), 'AuditService');
     }
   }
 
-  findAll(page = 1, pageSize = 20) {
+  async findAll(page = 1, pageSize = 20) {
     const offset = (page - 1) * pageSize;
-    const total = this.db.get<{ count: number }>(
+    const total = (await this.db.get<{ count: number }>(
       'SELECT COUNT(*) as count FROM admin_audit_logs',
-    )!.count;
-    const list = this.db.all<Record<string, unknown>>(
-      `SELECT * FROM admin_audit_logs ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    ))!.count;
+    const list = await this.db.all<Record<string, unknown>>(
+      `SELECT * FROM admin_audit_logs ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
       [pageSize, offset],
     );
     return { total, list, page, pageSize };

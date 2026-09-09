@@ -52,11 +52,23 @@ function parseBinaryStl(buf: Buffer): number {
     // 每个三角面: 12 字节法线 + 36 字节顶点(3×3 float) + 2 字节属性
     // 跳过法线(12)
     offset += 12;
-    const p1: Vec3 = { x: buf.readFloatLE(offset), y: buf.readFloatLE(offset + 4), z: buf.readFloatLE(offset + 8) };
+    const p1: Vec3 = {
+      x: buf.readFloatLE(offset),
+      y: buf.readFloatLE(offset + 4),
+      z: buf.readFloatLE(offset + 8),
+    };
     offset += 12;
-    const p2: Vec3 = { x: buf.readFloatLE(offset), y: buf.readFloatLE(offset + 4), z: buf.readFloatLE(offset + 8) };
+    const p2: Vec3 = {
+      x: buf.readFloatLE(offset),
+      y: buf.readFloatLE(offset + 4),
+      z: buf.readFloatLE(offset + 8),
+    };
     offset += 12;
-    const p3: Vec3 = { x: buf.readFloatLE(offset), y: buf.readFloatLE(offset + 4), z: buf.readFloatLE(offset + 8) };
+    const p3: Vec3 = {
+      x: buf.readFloatLE(offset),
+      y: buf.readFloatLE(offset + 4),
+      z: buf.readFloatLE(offset + 8),
+    };
     offset += 12;
     offset += 2; // 属性字节
     volume += signedVolumeOfTriangle(p1, p2, p3);
@@ -94,15 +106,25 @@ function parseAsciiStl(text: string): number {
  */
 export function parseObjVolume(filePath: string): number {
   const text = readFileSync(filePath, 'utf8');
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    minZ = Infinity;
+  let maxX = -Infinity,
+    maxY = -Infinity,
+    maxZ = -Infinity;
   const lines = text.split(/\r?\n/);
   for (const line of lines) {
     if (line.startsWith('v ')) {
       const parts = line.split(/\s+/);
-      const x = parseFloat(parts[1]), y = parseFloat(parts[2]), z = parseFloat(parts[3]);
-      if (x < minX) minX = x; if (y < minY) minY = y; if (z < minZ) minZ = z;
-      if (x > maxX) maxX = x; if (y > maxY) maxY = y; if (z > maxZ) maxZ = z;
+      const x = parseFloat(parts[1]),
+        y = parseFloat(parts[2]),
+        z = parseFloat(parts[3]);
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (z < minZ) minZ = z;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+      if (z > maxZ) maxZ = z;
     }
   }
   if (!isFinite(minX)) return 0;

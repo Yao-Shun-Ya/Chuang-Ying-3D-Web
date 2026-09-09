@@ -1,6 +1,27 @@
 version: '3.8'
 
 services:
+  # ---------- PostgreSQL（生产级主库） ----------
+  postgres:
+    image: postgres:16-alpine
+    container_name: campus-print-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=campusapp
+      # 生产环境务必通过 .env（compose 变量注入）改为强密码
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-change-me-in-production}
+      - POSTGRES_DB=campusprint
+      - TZ=Asia/Shanghai
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campusapp -d campusprint"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+
   # ---------- 主应用（NestJS + 前端静态资源） ----------
   server:
     build:
@@ -13,36 +34,31 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DB_PATH=/app/data/campus-print.db
-      - STORAGE_PATH=/app/data/uploads
+      # PostgreSQL 连接（指向上方 postgres 服务）
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_USER=campusapp
+      - PG_PASSWORD=${PG_PASSWORD:-change-me-in-production}
+      - PG_DATABASE=campusprint
+      - PG_SSL=false
+      - PG_TZ=Asia/Shanghai
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - JWT_EXPIRES_IN=7d
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
       - THROTTLE_TTL=60
       - THROTTLE_LIMIT=10
       - LOG_LEVEL=info
-      - SMTP_HOST=${SMTP_HOST:-smtp.example.com}
+      - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-465}
       - SMTP_SECURE=true
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
-      - SMTP_FROM=${SMTP_FROM:-noreply@campus-print.local}
+      - SMTP_FROM=${SMTP_FROM:-}
     volumes:
-      - app-data:/app/data
+      - app-data:/app/server/data
     depends_on:
-      - redis
-    networks:
-      - app-net
-
-  # ---------- Redis（BullMQ 队列 + 缓存） ----------
-  redis:
-    image: redis:7-alpine
-    container_name: campus-print-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
+      postgres:
+        condition: service_healthy
     networks:
       - app-net
 
@@ -63,8 +79,8 @@ services:
       - app-net
 
 volumes:
+  pg-data:
   app-data:
-  redis-data:
 
 networks:
   app-net:

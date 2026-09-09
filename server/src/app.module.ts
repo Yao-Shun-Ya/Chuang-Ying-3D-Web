@@ -2,9 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { BullModule } from '@nestjs/bullmq';
 import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-redis-yet';
 import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -14,12 +12,16 @@ import { TransactionModule } from './modules/transaction/transaction.module';
 import { ModelModule } from './modules/model/model.module';
 import { OrderModule } from './modules/order/order.module';
 import { PrintModule } from './modules/print/print.module';
+import { DeviceModule } from './modules/device/device.module';
+import { LaserModule } from './modules/laser/laser.module';
 import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // 显式加载 server/.env（ensure-pg.js 首启自动生成；生产环境用此文件或真实环境变量注入）
+      envFilePath: ['.env'],
       load: [configuration],
     }),
     ThrottlerModule.forRootAsync({
@@ -34,38 +36,12 @@ import { CommonModule } from './common/common.module';
         ],
       }),
     }),
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>('redis.host', 'localhost'),
-          port: config.get<number>('redis.port', 6379),
-          password: config.get<string>('redis.password') || undefined,
-        },
-      }),
-    }),
-    CacheModule.registerAsync({
+    // 进程内缓存（管理端订单列表等短时缓存用）。
+    // 本系统为单实例校园部署，内存缓存即可满足；避免引入 Redis 等外部中间件，
+    // 保证「开封即用」（唯一外部依赖为 PostgreSQL，由 scripts/ensure-pg.js 自动管理）。
+    CacheModule.register({
       isGlobal: true,
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService) => {
-        const redisHost = config.get<string>('redis.host', 'localhost');
-        const redisPort = config.get<number>('redis.port', 6379);
-        const redisPassword = config.get<string>('redis.password') || undefined;
-
-        try {
-          // 尝试连接 Redis，失败则回退到内存缓存
-          const store = await redisStore({
-            socket: { host: redisHost, port: redisPort, connectTimeout: 2000 },
-            password: redisPassword,
-          });
-          return { store, ttl: 60 * 1000 };
-        } catch {
-          // 回退到内存缓存（开发环境 / Redis 不可用时）
-          return { ttl: 60 * 1000 };
-        }
-      },
+      ttl: 60 * 1000,
     }),
     DatabaseModule,
     CommonModule,
@@ -76,6 +52,8 @@ import { CommonModule } from './common/common.module';
     ModelModule,
     OrderModule,
     PrintModule,
+    DeviceModule,
+    LaserModule,
   ],
   providers: [
     // 全局限流守卫：所有接口默认 10 次/分钟（按 IP）

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, createReadStream } from 'fs';
+import { createInterface } from 'readline';
 import { join } from 'path';
 import sharp from 'sharp';
 
@@ -99,9 +100,18 @@ export class ThumbnailService {
 
     const projected = corners.map(([x, y, z]) => project(x, y, z));
     const edges = [
-      [0, 1], [1, 2], [2, 3], [3, 0], // 底面
-      [4, 5], [5, 6], [6, 7], [7, 4], // 顶面
-      [0, 4], [1, 5], [2, 6], [3, 7], // 侧面
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0], // 底面
+      [4, 5],
+      [5, 6],
+      [6, 7],
+      [7, 4], // 顶面
+      [0, 4],
+      [1, 5],
+      [2, 6],
+      [3, 7], // 侧面
     ];
 
     let linesSvg = '';
@@ -125,7 +135,14 @@ export class ThumbnailService {
   private async parseBoundingBox(
     format: string,
     filePath: string,
-  ): Promise<{ minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number } | null> {
+  ): Promise<{
+    minX: number;
+    minY: number;
+    minZ: number;
+    maxX: number;
+    maxY: number;
+    maxZ: number;
+  } | null> {
     try {
       if (format === 'stl') {
         return this.parseStlBbox(filePath);
@@ -138,11 +155,21 @@ export class ThumbnailService {
     }
   }
 
-  private parseStlBbox(filePath: string): Promise<{ minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number } | null> {
+  private parseStlBbox(filePath: string): Promise<{
+    minX: number;
+    minY: number;
+    minZ: number;
+    maxX: number;
+    maxY: number;
+    maxZ: number;
+  } | null> {
     return new Promise((resolve) => {
-      const { createReadStream } = require('fs');
-      let minX = Infinity, minY = Infinity, minZ = Infinity;
-      let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+      let minX = Infinity,
+        minY = Infinity,
+        minZ = Infinity;
+      let maxX = -Infinity,
+        maxY = -Infinity,
+        maxZ = -Infinity;
       let headerRead = false;
       let buffer = Buffer.alloc(0);
       let numTriangles = 0;
@@ -150,8 +177,8 @@ export class ThumbnailService {
 
       const stream = createReadStream(filePath, { highWaterMark: 64 * 1024 });
 
-      stream.on('data', (chunk: Buffer) => {
-        buffer = Buffer.concat([buffer, chunk]);
+      stream.on('data', (chunk: Buffer | string) => {
+        buffer = Buffer.concat([buffer, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
         if (!headerRead && buffer.length >= 84) {
           // 判断 ASCII
           const head = buffer.subarray(0, 5).toString('ascii').toLowerCase();
@@ -162,9 +189,15 @@ export class ThumbnailService {
             for (const line of lines) {
               if (line.trim().startsWith('vertex')) {
                 const parts = line.trim().split(/\s+/);
-                const x = parseFloat(parts[1]), y = parseFloat(parts[2]), z = parseFloat(parts[3]);
-                minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
-                maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z);
+                const x = parseFloat(parts[1]),
+                  y = parseFloat(parts[2]),
+                  z = parseFloat(parts[3]);
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                minZ = Math.min(minZ, z);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+                maxZ = Math.max(maxZ, z);
               }
             }
             stream.destroy();
@@ -186,8 +219,12 @@ export class ThumbnailService {
             const x = tri.readFloatLE(off);
             const y = tri.readFloatLE(off + 4);
             const z = tri.readFloatLE(off + 8);
-            minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
-            maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z);
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+            maxZ = Math.max(maxZ, z);
           }
           processed++;
         }
@@ -205,14 +242,23 @@ export class ThumbnailService {
     });
   }
 
-  private parseObjBbox(filePath: string): Promise<{ minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number } | null> {
+  private parseObjBbox(filePath: string): Promise<{
+    minX: number;
+    minY: number;
+    minZ: number;
+    maxX: number;
+    maxY: number;
+    maxZ: number;
+  } | null> {
     return new Promise((resolve) => {
-      const { createReadStream } = require('fs');
-      const readline = require('readline');
-      let minX = Infinity, minY = Infinity, minZ = Infinity;
-      let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+      let minX = Infinity,
+        minY = Infinity,
+        minZ = Infinity;
+      let maxX = -Infinity,
+        maxY = -Infinity,
+        maxZ = -Infinity;
 
-      const rl = readline.createInterface({
+      const rl = createInterface({
         input: createReadStream(filePath, { encoding: 'utf8' }),
         crlfDelay: Infinity,
       });
@@ -220,9 +266,15 @@ export class ThumbnailService {
       rl.on('line', (line: string) => {
         if (line.startsWith('v ')) {
           const parts = line.split(/\s+/);
-          const x = parseFloat(parts[1]), y = parseFloat(parts[2]), z = parseFloat(parts[3]);
-          minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
-          maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z);
+          const x = parseFloat(parts[1]),
+            y = parseFloat(parts[2]),
+            z = parseFloat(parts[3]);
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          minZ = Math.min(minZ, z);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+          maxZ = Math.max(maxZ, z);
         }
       });
 
@@ -234,7 +286,13 @@ export class ThumbnailService {
   }
 
   /** 占位 SVG（无法解析模型时） */
-  private placeholderSvg(width: number, height: number, format: string, bg: string, color: string): string {
+  private placeholderSvg(
+    width: number,
+    height: number,
+    format: string,
+    bg: string,
+    color: string,
+  ): string {
     return `
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
         <rect width="${width}" height="${height}" fill="${bg}" rx="12"/>

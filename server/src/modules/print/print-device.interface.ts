@@ -23,6 +23,15 @@ export interface PrintTask {
     infillRate: number;
   };
   estimatedCost: number;
+  /** 学生下单时选择的打印配置（设备 / 填充 / 支撑 / 颜色） */
+  printParams?: {
+    deviceId?: string | null;
+    infillRate?: number | null;
+    supports?: number | null;
+    color?: string | null;
+  };
+  /** 订单绑定的打印设备 ID */
+  printerDeviceId?: string | null;
 }
 
 export type PrinterStatus = 'idle' | 'printing' | 'error' | 'offline';

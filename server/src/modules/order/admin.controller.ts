@@ -23,12 +23,19 @@ import { UserService } from '../user/user.service';
 import { TransactionService } from '../transaction/transaction.service';
 import { AuditService } from '../admin/audit.service';
 import { Response, Request } from 'express';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 class RejectDto {
   @IsString()
   @IsNotEmpty()
   reason: string;
+}
+
+class ApproveDto {
+  /** 可选：审核通过时直接绑定打印机（开始打印后设备上报完成自动流转） */
+  @IsOptional()
+  @IsString()
+  printerDeviceId?: string;
 }
 
 /**
@@ -61,15 +68,22 @@ export class AdminController {
     return this.orderService.listAll(status as any);
   }
 
-  /** 审核通过 → approved + 自动下发打印任务 → printing */
+  /** 审核通过 → approved + 自动下发打印任务 → printing（可同时绑定打印机） */
   @Post('orders/:id/approve')
   async approve(
     @Param('id') id: number,
+    @Body() dto: ApproveDto,
     @CurrentUser('sub') adminId: number,
     @CurrentUser('username') adminName: string,
     @Req() req: Request,
   ) {
-    const order = this.orderService.updateStatus(id, 'approved', adminId, '审核通过');
+    const order = await this.orderService.updateStatus(
+      id,
+      'approved',
+      adminId,
+      '审核通过',
+      dto.printerDeviceId,
+    );
     this.clearOrdersCache();
     this.auditService.log({
       adminId,
@@ -85,14 +99,14 @@ export class AdminController {
 
   /** 审核驳回 → rejected + 退款 */
   @Post('orders/:id/reject')
-  reject(
+  async reject(
     @Param('id') id: number,
     @Body() dto: RejectDto,
     @CurrentUser('sub') adminId: number,
     @CurrentUser('username') adminName: string,
     @Req() req: Request,
   ) {
-    const order = this.orderService.reject(id, adminId, dto.reason);
+    const order = await this.orderService.reject(id, adminId, dto.reason);
     this.clearOrdersCache();
     this.auditService.log({
       adminId,
@@ -121,13 +135,13 @@ export class AdminController {
 
   /** 导出流水 CSV */
   @Get('transactions/export')
-  exportTransactions(
+  async exportTransactions(
     @Res() res: Response,
     @CurrentUser('sub') adminId: number,
     @CurrentUser('username') adminName: string,
     @Req() req: Request,
   ) {
-    const csv = this.txService.exportCsv();
+    const csv = await this.txService.exportCsv();
     this.auditService.log({
       adminId,
       adminName,
@@ -142,10 +156,7 @@ export class AdminController {
 
   /** 审计日志列表 */
   @Get('audit-logs')
-  listAuditLogs(
-    @Query('page') page: string,
-    @Query('pageSize') pageSize: string,
-  ) {
+  listAuditLogs(@Query('page') page: string, @Query('pageSize') pageSize: string) {
     return this.auditService.findAll(
       page ? parseInt(page, 10) : 1,
       pageSize ? parseInt(pageSize, 10) : 20,

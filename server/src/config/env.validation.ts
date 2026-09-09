@@ -5,9 +5,7 @@ import { z } from 'zod';
  * 启动时校验，缺失关键变量直接抛出错误并退出
  */
 export const envSchema = z.object({
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().positive().default(8731),
 
   // 安全
@@ -18,8 +16,19 @@ export const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGINS: z.string().default(''),
 
-  // 数据库
-  DB_FILE: z.string().default('data/campus-print.db'),
+  // 数据库（PostgreSQL）
+  DB_TYPE: z.enum(['postgres']).default('postgres'), // 统一走 PostgreSQL（生产级），移除 SQLite
+  PG_HOST: z.string().default('127.0.0.1'),
+  PG_PORT: z.coerce.number().int().positive().default(5432),
+  PG_USER: z.string().default('postgres'),
+  PG_PASSWORD: z.string().default(''),
+  PG_DATABASE: z.string().default('campusprint'),
+  PG_SSL: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  PG_POOL_MAX: z.coerce.number().int().positive().default(20),
+  PG_TZ: z.string().default('Asia/Shanghai'), // 应用本地时区，datetime shim 据此产出 YYYY-MM-DD HH:MM:SS
 
   // 存储
   UPLOAD_DIR: z.string().default('data/uploads'),
@@ -35,6 +44,15 @@ export const envSchema = z.object({
   // 打印回调
   PRINT_CALLBACK_URL: z.string().default(''),
   PRINT_CALLBACK_SECRET: z.string().default(''),
+
+  // 设备接入
+  DEVICES_CONFIG_PATH: z.string().default('config/devices.json'),
+
+  // 激光自助业务
+  LASER_PRICE_PER_MINUTE: z.coerce.number().positive().default(0.5),
+  LASER_EXPIRE_MINUTES: z.coerce.number().int().positive().default(60),
+  LASER_AUTO_END_GRACE_MINUTES: z.coerce.number().int().positive().default(5),
+  LASER_HARD_CAP_GRACE_MINUTES: z.coerce.number().int().positive().default(30),
 
   // 默认管理员
   ADMIN_USER: z.string().default('admin'),
@@ -64,15 +82,8 @@ export const envSchema = z.object({
   THROTTLE_TTL: z.coerce.number().int().positive().default(60),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(10),
 
-  // Redis
-  REDIS_HOST: z.string().default('localhost'),
-  REDIS_PORT: z.coerce.number().int().positive().default(6379),
-  REDIS_PASSWORD: z.string().default(''),
-
   // 日志
-  LOG_LEVEL: z
-    .enum(['error', 'warn', 'info', 'debug'])
-    .default('info'),
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

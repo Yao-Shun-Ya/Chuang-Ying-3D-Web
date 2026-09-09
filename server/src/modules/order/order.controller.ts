@@ -27,6 +27,22 @@ class CreateOrderDto {
   @IsOptional()
   @IsNumber()
   scale?: number;
+  /** 指定执行任务的打印设备（fdm 类） */
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+  /** 填充率 0~1（计价联动） */
+  @IsOptional()
+  @IsNumber()
+  infillRate?: number;
+  /** 支撑数量 0~100 */
+  @IsOptional()
+  @IsNumber()
+  supports?: number;
+  /** 耗材颜色 */
+  @IsOptional()
+  @IsString()
+  color?: string;
 }
 
 class UpdateStatusDto {
@@ -36,6 +52,10 @@ class UpdateStatusDto {
   @IsOptional()
   @IsString()
   remark?: string;
+  /** 绑定打印机（开始打印时选择，供设备上报完成自动流转） */
+  @IsOptional()
+  @IsString()
+  printerDeviceId?: string;
 }
 
 @Controller('orders')
@@ -49,7 +69,12 @@ export class OrderController {
   /** 学生创建订单 */
   @Post()
   create(@Body() dto: CreateOrderDto, @CurrentUser('sub') userId: number) {
-    const order = this.orderService.createOrder(userId, dto.modelId, dto.remark, dto.scale);
+    const order = this.orderService.createOrder(userId, dto.modelId, dto.remark, dto.scale, {
+      deviceId: dto.deviceId,
+      infillRate: dto.infillRate,
+      supports: dto.supports,
+      color: dto.color,
+    });
     this.cacheManager.del('admin_orders').catch(() => {});
     return order;
   }
@@ -62,8 +87,8 @@ export class OrderController {
 
   /** 订单详情 */
   @Get(':id')
-  detail(@Param('id') id: number, @CurrentUser() user: any) {
-    const order = this.orderService.findById(id);
+  async detail(@Param('id') id: number, @CurrentUser() user: any) {
+    const order = await this.orderService.findById(id);
     if (!order) throw new BadRequestException('订单不存在');
     // 仅本人或管理员可查看
     if (order.user_id !== user.sub && user.role !== 'admin') {
@@ -74,8 +99,8 @@ export class OrderController {
 
   /** 订单状态日志 */
   @Get(':id/logs')
-  logs(@Param('id') id: number, @CurrentUser() user: any) {
-    const order = this.orderService.findById(id);
+  async logs(@Param('id') id: number, @CurrentUser() user: any) {
+    const order = await this.orderService.findById(id);
     if (!order) throw new BadRequestException('订单不存在');
     if (order.user_id !== user.sub && user.role !== 'admin') {
       throw new BadRequestException('无权限查看');
@@ -96,7 +121,13 @@ export class OrderController {
     @Body() dto: UpdateStatusDto,
     @CurrentUser('sub') adminId: number,
   ) {
-    const order = this.orderService.updateStatus(id, dto.status, adminId, dto.remark);
+    const order = this.orderService.updateStatus(
+      id,
+      dto.status,
+      adminId,
+      dto.remark,
+      dto.printerDeviceId,
+    );
     this.cacheManager.del('admin_orders').catch(() => {});
     return order;
   }

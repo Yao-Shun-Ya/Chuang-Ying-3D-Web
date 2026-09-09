@@ -88,18 +88,18 @@
 
             <div class="mt-4 rounded-xl gradient-bg p-6 text-white flex items-center justify-between">
               <div>
-                <p class="text-sm text-white/80">预估费用</p>
-                <p class="text-4xl font-bold mt-1">¥{{ scaledCost }}</p>
+                <p class="text-sm text-white/80">模型已就绪</p>
+                <p class="text-2xl font-bold mt-1">体积 {{ scaledVolume }} cm³ · 基准费用 ¥{{ scaledCost }}</p>
+                <p class="text-xs text-white/70 mt-1">下一步可挑选设备并配置打印参数（最终费用按填充率计算）</p>
               </div>
               <Button
                 variant="secondary"
                 size="lg"
                 class="bg-white text-primary hover:bg-white/90"
-                :disabled="submitting"
-                @click="submitOrder"
+                @click="goPrintConfig"
               >
-                <Loader2 v-if="submitting" class="w-4 h-4 animate-spin" />
-                {{ submitting ? '提交中...' : `确认下单（扣费 ¥${scaledCost}）` }}
+                下一步：配置打印
+                <ArrowRight class="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -111,21 +111,18 @@
 
 <script setup lang="ts">
 import AmbientBackground from '@/components/AmbientBackground.vue'
-import { ref, computed, reactive, watch, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { uploadModel, createOrder } from '@/api'
-import { useUserStore } from '@/stores/user'
-import { toast } from '@/composables/useToast'
+import { uploadModel } from '@/api'
 import { useDraft } from '@/composables/useDraft'
-import { UploadCloud, CheckCircle2, Loader2 } from 'lucide-vue-next'
+import { toast } from '@/composables/useToast'
+import { UploadCloud, CheckCircle2, ArrowRight } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 import ModelViewer from '@/components/ModelViewer.vue'
 
 const router = useRouter()
-const userStore = useUserStore()
 const fileInput = ref<HTMLInputElement>()
 const result = ref<any>(null)
-const submitting = ref(false)
 const dragging = ref(false)
 
 // 草稿数据：缩放倍数 + 模型解析结果摘要
@@ -216,17 +213,11 @@ function formatSize(bytes: number) {
   return (bytes / 1024 / 1024).toFixed(2) + ' MB'
 }
 
-async function submitOrder() {
-  submitting.value = true
-  try {
-    const order = await createOrder(result.value.id, undefined, scale.value)
-    toast.success(`订单已提交，订单号：${order.order_no}`)
-    userStore.setBalance(userStore.user!.balance - Number(scaledCost.value))
-    clearDraft() // 下单成功后清除草稿
-    router.push('/orders')
-  } finally {
-    submitting.value = false
-  }
+/** 进入打印配置页：选设备 + 参数 + 下单 */
+function goPrintConfig() {
+  if (!result.value?.id) return
+  clearDraft() // 进入配置页后草稿使命完成
+  router.push({ path: '/print-config', query: { modelId: String(result.value.id), scale: String(scale.value) } })
 }
 </script>
 

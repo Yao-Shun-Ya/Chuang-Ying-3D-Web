@@ -33,7 +33,7 @@ export class PrintDispatchService {
    * 下发打印任务
    */
   async dispatch(order: Order) {
-    const model = this.modelService.findById(order.model_id);
+    const model = await this.modelService.findById(order.model_id);
     if (!model) throw new Error('模型不存在，无法下发打印任务');
 
     const taskDir = join(
@@ -44,18 +44,24 @@ export class PrintDispatchService {
     if (!existsSync(taskDir)) mkdirSync(taskDir, { recursive: true });
 
     // 1. 复制模型文件（防御路径穿越：只取文件名部分，禁止任何路径分隔符）
-    const safeName = (model.original_name || 'model.stl').replace(/[/\\]/g, '_').replace(/\.{2,}/g, '.');
+    const safeName = (model.original_name || 'model.stl')
+      .replace(/[/\\]/g, '_')
+      .replace(/\.{2,}/g, '.');
     const destModel = join(taskDir, safeName);
     copyFileSync(model.file_path, destModel);
 
-    // 2. 生成任务清单 JSON
+    // 2. 生成任务清单 JSON（含学生选择的打印配置）
+    // 注意：order.print_params 已被 OrderService.mapOrder 从 JSON 字符串解析为对象，直接赋值即可
     const material = this.configService.get('material');
+    const printParams = (order.print_params as PrintTask['printParams']) || undefined;
     const task: PrintTask = {
       orderNo: order.order_no,
       modelPath: destModel,
       volume: order.volume,
       material,
       estimatedCost: order.cost,
+      printParams,
+      printerDeviceId: order.printer_device_id ?? null,
     };
     writeFileSync(join(taskDir, 'task.json'), JSON.stringify(task, null, 2), 'utf8');
 

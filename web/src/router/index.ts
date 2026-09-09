@@ -15,7 +15,10 @@ const routes = [
       // 学生端
       { path: 'balance', name: 'balance', component: () => import('@/views/student/Balance.vue'), meta: { requiresAuth: true } },
       { path: 'upload', name: 'upload', component: () => import('@/views/student/Upload.vue'), meta: { requiresAuth: true } },
+      { path: 'print-config', name: 'print-config', component: () => import('@/views/student/PrintConfig.vue'), meta: { requiresAuth: true } },
       { path: 'orders', name: 'orders', component: () => import('@/views/student/Orders.vue'), meta: { requiresAuth: true } },
+      { path: 'devices', name: 'devices', component: () => import('@/views/student/DeviceStatus.vue'), meta: { requiresAuth: true } },
+      { path: 'laser', name: 'laser', component: () => import('@/views/student/Laser.vue'), meta: { requiresAuth: true } },
       { path: 'account', name: 'account', component: () => import('@/views/student/Account.vue'), meta: { requiresAuth: true } },
     ],
   },
@@ -30,6 +33,8 @@ const routes = [
       { path: 'orders', name: 'admin-orders', component: () => import('@/views/admin/OrderReview.vue') },
       { path: 'transactions', name: 'admin-transactions', component: () => import('@/views/admin/Transactions.vue') },
       { path: 'users', name: 'admin-users', component: () => import('@/views/admin/Users.vue') },
+      { path: 'devices', name: 'admin-devices', component: () => import('@/views/admin/Devices.vue') },
+      { path: 'laser', name: 'admin-laser', component: () => import('@/views/admin/LaserManage.vue') },
     ],
   },
 ]

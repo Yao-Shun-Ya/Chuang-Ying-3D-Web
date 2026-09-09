@@ -53,8 +53,8 @@ export class CdkController {
 
   /** 学生查询当前余额 */
   @Get('balance')
-  balance(@CurrentUser('sub') userId: number) {
-    const u = this.userService.findById(userId);
+  async balance(@CurrentUser('sub') userId: number) {
+    const u = await this.userService.findById(userId);
     if (!u) throw new NotFoundException('用户不存在');
     return { balance: u.balance };
   }

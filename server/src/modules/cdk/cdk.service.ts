@@ -23,25 +23,22 @@ export class CdkService {
   ) {}
 
   /** 管理员批量生成 CDK */
-  batchGenerate(value: number, count: number): Cdk[] {
+  async batchGenerate(value: number, count: number): Promise<Cdk[]> {
     if (value <= 0) throw new BadRequestException('面值必须大于 0');
     if (count <= 0 || count > 1000) throw new BadRequestException('数量需在 1~1000 之间');
 
     const created: Cdk[] = [];
-    const stmt = this.db.prepare(
-      `INSERT INTO cdks (code, value) VALUES (?, ?)`,
-    );
     for (let i = 0; i < count; i++) {
       // 生成 12 位唯一码（大写字母+数字，去掉易混淆字符）
       const code = this.generateCode();
       try {
-        stmt.run(code, value);
-        created.push(this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [code])!);
+        await this.db.run(`INSERT INTO cdks (code, value) VALUES (?, ?)`, [code, value]);
+        created.push((await this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [code]))!);
       } catch (e) {
         // 唯一约束冲突，重试一次
         const code2 = this.generateCode();
-        stmt.run(code2, value);
-        created.push(this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [code2])!);
+        await this.db.run(`INSERT INTO cdks (code, value) VALUES (?, ?)`, [code2, value]);
+        created.push((await this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [code2]))!);
       }
     }
     return created;
@@ -57,31 +54,33 @@ export class CdkService {
   }
 
   /** 学生兑换 CDK */
-  redeem(code: string, userId: number) {
+  async redeem(code: string, userId: number) {
     const cleanCode = code.trim().toUpperCase();
-    const cdk = this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [cleanCode]);
+    const cdk = await this.db.get<Cdk>('SELECT * FROM cdks WHERE code = ?', [cleanCode]);
     if (!cdk) throw new NotFoundException('CDK 不存在');
     if (cdk.status === 'used') throw new BadRequestException('该 CDK 已被使用，不可重复兑换');
 
-    const user = this.userService.findById(userId);
+    const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('用户不存在');
 
     const newBalance = +(user.balance + cdk.value).toFixed(2);
 
     // 事务：条件更新 CDK 状态（防并发双花）+ 原子加余额 + 流水
-    this.db.transaction(() => {
-      const cdkRes = this.db.prepare(
+    await this.db.transaction(async (tx) => {
+      const cdkRes = await tx.run(
         `UPDATE cdks SET status = 'used', redeemed_by = ?, redeemed_at = datetime('now','localtime')
          WHERE id = ? AND status = 'unused'`,
-      ).run(userId, cdk.id);
+        [userId, cdk.id],
+      );
       if (cdkRes.changes === 0) {
         throw new BadRequestException('该 CDK 已被使用，不可重复兑换');
       }
-      const balRes = this.db
-        .prepare('UPDATE users SET balance = ROUND(balance + ?, 2) WHERE id = ?')
-        .run(cdk.value, userId);
+      const balRes = await tx.run(
+        'UPDATE users SET balance = ROUND((balance + ?)::numeric, 2) WHERE id = ?',
+        [cdk.value, userId],
+      );
       if (balRes.changes === 0) throw new NotFoundException('用户不存在');
-      this.txService.record({
+      await this.txService.record({
         userId,
         type: 'recharge',
         amount: cdk.value,
@@ -98,7 +97,7 @@ export class CdkService {
     };
   }
 
-  list(status?: string) {
+  async list(status?: string) {
     if (status) {
       return this.db.all<Cdk>('SELECT * FROM cdks WHERE status = ? ORDER BY id DESC', [status]);
     }

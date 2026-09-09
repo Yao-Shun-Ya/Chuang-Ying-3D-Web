@@ -195,7 +195,7 @@
 import AmbientBackground from '@/components/AmbientBackground.vue'
 import { ref, onMounted, computed, markRaw } from 'vue'
 import { listAllOrders, listUsers, listAllTransactions, listCdk, changeAdminPasswordByKey } from '@/api'
-import { Users, FileText, Clock, Wallet, Zap, ListChecks, Ticket, Receipt, KeyRound, UploadCloud, FileCheck, Loader2, Activity, RefreshCw, HardDrive, MemoryStick, Database } from 'lucide-vue-next'
+import { Users, FileText, Clock, Wallet, Zap, ListChecks, Ticket, Receipt, KeyRound, UploadCloud, FileCheck, Loader2, Activity, RefreshCw, HardDrive, MemoryStick, Database, Flame, MonitorCog } from 'lucide-vue-next'
 import { toast } from '@/composables/useToast'
 import Input from '@/components/ui/Input.vue'
 import Label from '@/components/ui/Label.vue'
@@ -294,6 +294,8 @@ const stats = computed(() => [
 
 const links = [
   { path: '/admin/orders', label: '订单审核', desc: '审核与流转', icon: markRaw(ListChecks), bg: 'bg-indigo-100', color: 'text-indigo-600' },
+  { path: '/admin/laser', label: '激光工坊', desc: '预约审核', icon: markRaw(Flame), bg: 'bg-rose-100', color: 'text-rose-600' },
+  { path: '/admin/devices', label: '设备管理', desc: '监控与控制', icon: markRaw(MonitorCog), bg: 'bg-cyan-100', color: 'text-cyan-600' },
   { path: '/admin/cdk', label: 'CDK 管理', desc: '生成兑换码', icon: markRaw(Ticket), bg: 'bg-pink-100', color: 'text-pink-600' },
   { path: '/admin/transactions', label: '流水对账', desc: '导出明细', icon: markRaw(Receipt), bg: 'bg-teal-100', color: 'text-teal-600' },
   { path: '/admin/users', label: '用户管理', desc: '查看用户', icon: markRaw(Users), bg: 'bg-orange-100', color: 'text-orange-600' },

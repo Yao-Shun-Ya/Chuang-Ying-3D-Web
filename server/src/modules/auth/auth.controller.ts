@@ -52,8 +52,8 @@ export class AuthController {
   /** 当前登录用户信息 */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: { sub: number }) {
-    const full = this.userService.findById(user.sub);
+  async me(@CurrentUser() user: { sub: number }) {
+    const full = await this.userService.findById(user.sub);
     if (!full) throw new NotFoundException('用户不存在');
     return {
       id: full.id,
@@ -71,11 +71,11 @@ export class AuthController {
 
   @Patch('me')
   @UseGuards(JwtAuthGuard)
-  updateProfile(
+  async updateProfile(
     @CurrentUser('sub') userId: number,
     @Body() body: { realName?: string; studentNo?: string; displayName?: string; avatar?: string },
   ) {
-    const u = this.userService.updateProfile(userId, body);
+    const u = await this.userService.updateProfile(userId, body);
     if (!u) throw new NotFoundException('用户不存在');
     return {
       id: u.id,

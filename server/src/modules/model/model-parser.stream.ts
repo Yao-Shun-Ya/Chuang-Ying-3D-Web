@@ -59,9 +59,21 @@ export function parseBinaryStlStream(
         buffer = buffer.subarray(TRIANGLE_SIZE);
 
         // 跳过 12 字节法线，读取 3 个顶点（各 12 字节）
-        const p1: Vec3 = { x: triBuf.readFloatLE(12), y: triBuf.readFloatLE(16), z: triBuf.readFloatLE(20) };
-        const p2: Vec3 = { x: triBuf.readFloatLE(24), y: triBuf.readFloatLE(28), z: triBuf.readFloatLE(32) };
-        const p3: Vec3 = { x: triBuf.readFloatLE(36), y: triBuf.readFloatLE(40), z: triBuf.readFloatLE(44) };
+        const p1: Vec3 = {
+          x: triBuf.readFloatLE(12),
+          y: triBuf.readFloatLE(16),
+          z: triBuf.readFloatLE(20),
+        };
+        const p2: Vec3 = {
+          x: triBuf.readFloatLE(24),
+          y: triBuf.readFloatLE(28),
+          z: triBuf.readFloatLE(32),
+        };
+        const p3: Vec3 = {
+          x: triBuf.readFloatLE(36),
+          y: triBuf.readFloatLE(40),
+          z: triBuf.readFloatLE(44),
+        };
 
         volume += signedVolumeOfTriangle(p1, p2, p3);
         processed++;
@@ -165,8 +177,12 @@ export function parseObjVolumeStream(
   progressCallback?: ParseProgressCallback,
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    let minX = Infinity, minY = Infinity, minZ = Infinity;
-    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      minZ = Infinity;
+    let maxX = -Infinity,
+      maxY = -Infinity,
+      maxZ = -Infinity;
     let lineCount = 0;
 
     const rl = readline.createInterface({
@@ -178,9 +194,15 @@ export function parseObjVolumeStream(
       lineCount++;
       if (line.startsWith('v ')) {
         const parts = line.split(/\s+/);
-        const x = parseFloat(parts[1]), y = parseFloat(parts[2]), z = parseFloat(parts[3]);
-        if (x < minX) minX = x; if (y < minY) minY = y; if (z < minZ) minZ = z;
-        if (x > maxX) maxX = x; if (y > maxY) maxY = y; if (z > maxZ) maxZ = z;
+        const x = parseFloat(parts[1]),
+          y = parseFloat(parts[2]),
+          z = parseFloat(parts[3]);
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (z < minZ) minZ = z;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+        if (z > maxZ) maxZ = z;
       }
       if (lineCount % 5000 === 0 && progressCallback) {
         progressCallback(Math.min(lineCount / 50000, 0.9));
@@ -189,7 +211,10 @@ export function parseObjVolumeStream(
 
     rl.on('close', () => {
       if (progressCallback) progressCallback(1);
-      if (!isFinite(minX)) { resolve(0); return; }
+      if (!isFinite(minX)) {
+        resolve(0);
+        return;
+      }
       const bboxVolume = Math.abs((maxX - minX) * (maxY - minY) * (maxZ - minZ));
       resolve(bboxVolume * 0.4);
     });

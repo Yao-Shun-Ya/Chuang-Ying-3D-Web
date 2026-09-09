@@ -27,12 +27,14 @@ const ALLOWED_EXT = ['.stl', '.obj', '.3mf'];
  */
 function sanitizeOriginalName(name: string): string {
   const base = name.replace(/[/\\]/g, '_').split(/[\\/]/).pop() || 'model';
-  return base
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1f\x7f]/g, '')
-    .replace(/\.{2,}/g, '.')
-    .slice(0, 120)
-    .trim() || 'model';
+  return (
+    base
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f]/g, '')
+      .replace(/\.{2,}/g, '.')
+      .slice(0, 120)
+      .trim() || 'model'
+  );
 }
 
 @Controller('models')
@@ -71,39 +73,39 @@ export class ModelController {
       },
     }),
   )
-  upload(
-    @UploadedFile() file: Express.Multer.File,
-    @CurrentUser('sub') userId: number,
-  ) {
+  upload(@UploadedFile() file: Express.Multer.File, @CurrentUser('sub') userId: number) {
     if (!file) throw new BadRequestException('未收到文件');
 
     const ext = extname(file.originalname).toLowerCase().replace('.', '');
-    return this.modelService.create({
-      userId,
-      filename: file.filename,
-      originalName: sanitizeOriginalName(file.originalname),
-      filePath: file.path,
-      fileSize: file.size,
-      format: ext as any,
-    }).then((model) => ({
-      id: model.id,
-      originalName: model.original_name,
-      format: model.format,
-      fileSize: model.file_size,
-      volume: model.volume,
-      volumeUnit: 'cm³',
-      estimatedCost: model.estimated_cost,
-      costUnit: '元',
-      thumbnailPath: model.thumbnail_path,
-      createdAt: model.created_at,
-    }));
+    return this.modelService
+      .create({
+        userId,
+        filename: file.filename,
+        originalName: sanitizeOriginalName(file.originalname),
+        filePath: file.path,
+        fileSize: file.size,
+        format: ext as any,
+      })
+      .then((model) => ({
+        id: model.id,
+        originalName: model.original_name,
+        format: model.format,
+        fileSize: model.file_size,
+        volume: model.volume,
+        volumeUnit: 'cm³',
+        estimatedCost: model.estimated_cost,
+        costUnit: '元',
+        thumbnailPath: model.thumbnail_path,
+        createdAt: model.created_at,
+      }));
   }
 
   /** 当前用户的模型列表 */
   @Get()
   @UseGuards(JwtAuthGuard)
-  list(@CurrentUser('sub') userId: number) {
-    return this.modelService.listByUser(userId).map((m) => ({
+  async list(@CurrentUser('sub') userId: number) {
+    const rows = await this.modelService.listByUser(userId);
+    return rows.map((m) => ({
       id: m.id,
       originalName: m.original_name,
       format: m.format,
@@ -120,8 +122,8 @@ export class ModelController {
   /** 下载/预览模型文件（管理员与所有者可访问） */
   @Get(':id/file')
   @UseGuards(JwtAuthGuard)
-  download(@Param('id') id: number, @CurrentUser() user: any, @Res() res: Response) {
-    const model = this.modelService.findById(id);
+  async download(@Param('id') id: number, @CurrentUser() user: any, @Res() res: Response) {
+    const model = await this.modelService.findById(id);
     if (!model) throw new BadRequestException('模型不存在');
     // 仅所有者或管理员可下载
     if (model.user_id !== user.sub && user.role !== 'admin') {
@@ -132,8 +134,8 @@ export class ModelController {
 
   /** 获取模型缩略图 */
   @Get(':id/thumbnail')
-  thumbnail(@Param('id') id: number, @Res() res: Response) {
-    const model = this.modelService.findById(id);
+  async thumbnail(@Param('id') id: number, @Res() res: Response) {
+    const model = await this.modelService.findById(id);
     if (!model) throw new BadRequestException('模型不存在');
     if (model.thumbnail_path) {
       res.sendFile(model.thumbnail_path);
